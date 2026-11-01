@@ -40,3 +40,7 @@ test('unsupported and rejected permissions give readable errors',async()=>{
  await assert.rejects(new MidiClock({navigator:{}}).enable(),/unterstützt Web MIDI nicht/);
  await assert.rejects(new MidiClock({navigator:{requestMIDIAccess:async()=>{const error=new Error();error.name='NotAllowedError';throw error;}}}).enable(),/nicht freigegeben/);
 });
+
+test('MIDI song position pointer uses six clock ticks per sixteenth and permits realtime interleaving',()=>{
+ const {clock}=fixture(),events=[];clock.addEventListener('clock',e=>events.push(e.detail));clock.receive([0xF2,8,0],1000);assert.equal(clock.pulses,48);assert.equal(events.at(-1).beat,2);assert.equal(events.at(-1).kind,'position');clock.receive([0xF2,16,0xF8,0],1100);assert.equal(clock.pulses,96);assert.equal(events.at(-1).beat,4);assert.equal(events.at(-1).timestamp,1100);
+});

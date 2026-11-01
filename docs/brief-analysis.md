@@ -8,10 +8,10 @@ Die konkrete Nutzeranfrage bestimmt die Zielplattform als Webapp und verlangt va
 
 | Briefing | Umsetzung |
 | --- | --- |
-| Eingang und Host-Clock | AudioBufferSource oder MediaStreamAudioSource, interner Samplezähler, optionaler MIDI-Tempo-/Transport-Follower |
+| Eingang und Host-Clock | AudioBufferSource oder MediaStreamAudioSource, interner Samplezähler, optionale zeitgestempelte MIDI-Clock mit Phasenkorrektur und Song Position Pointer |
 | Drei Time-Engines und Bend-Modus | Stereo-Ringpuffer, Dual-Grains, Tape-Readhead und taktgebundene Capture-Slices; BendIt als Zustand des Stutter-Moduls |
 | Vier Effekt-Reihenfolgen | Drei serielle Anordnungen und parallele Summe der Time-Engines |
-| 62 Effekte | 62 implementierte Kerne, jeder einmal einfügbar; reduzierte Reglerauswahl pro Kern |
+| 62 Effekte | 62 implementierte Kerne, jeder einmal einfügbar; erweiterte dokumentierte Parameter in Haupt-/Detailbereichen |
 | Serial/Parallel und Gain je FX | Instanzbasierte Kette, stabile IDs, Fades, separate Mix-/Gain-Steuerung und Latenzausgleich |
 | Spektrale Prozesse | Gemeinsame Stereo-FFT/STFT mit tatsächlicher Overlap-Add-Synthese |
 | MAIN und Schutz | 3-Band-EQ, Gain, Pan, Mix und Kompressor mit begrenztem Stereoausgang |
@@ -25,10 +25,10 @@ Die konkrete Nutzeranfrage bestimmt die Zielplattform als Webapp und verlangt va
 
 ## Bewusst aufgelöste Unklarheiten
 
-Die App ist eine eigenständige Interpretation. Die widersprüchlichen Aussagen zu Originalversionen, Preisen oder proprietären Verfahren sind keine Voraussetzung für das Funktionieren der Webapp. Unbekannte Algorithmen wurden selbst entworfen; die Beschreibungen wurden nicht als Beleg für identische Ergebnisse verwendet. Die Parametergruppen sind auf eine bedienbare, tatsächlich angeschlossene Auswahl reduziert. Näherungen und fehlende Spezialoptionen sind im README und den Implementierungsnotizen aufgeführt.
+Die App ist eine eigenständige Interpretation. Die widersprüchlichen Aussagen zu Originalversionen, Preisen oder proprietären Verfahren sind keine Voraussetzung für das Funktionieren der Webapp. Unbekannte Algorithmen wurden selbst entworfen; die Beschreibungen wurden nicht als Beleg für identische Ergebnisse verwendet. Die zunächst reduzierten Parametergruppen und Mechanismen wurden in Version 2.0 vervollständigt. Der aktuelle Abgleich ist in feature-coverage.md und den Implementierungsnotizen dokumentiert. Nicht öffentlich belegte Originaldetails bleiben von den eigenständig implementierten Funktionsmechanismen getrennt.
 
-Der externe Plugin-Sidechain und DAW-Automationsspuren haben im eigenständigen Browserprozess kein direktes Gegenstück. Der MIDI-Empfang folgt Tempo/Transport, verspricht keine externe samplegenaue PPQ-Verriegelung. Die eigenen Werkzeuge bleiben auch ohne Datei- oder Mikrofonzugriff mit dem erzeugten Factory-Loop nutzbar.
+Ein unabhängiger zweiter Audioeingang bildet den externen Sidechain ab. Samplegetreue Control-Aufnahme und Wiedergabe ersetzen innerhalb der Webapp native DAW-Automationsspuren. MIDI-Zeitstempel korrigieren die fortlaufende Sample-Clock; externe Hardware-Ankunft kann die Webapp nicht samplegenau garantieren. Die eigenen Werkzeuge bleiben auch ohne Datei- oder Mikrofonzugriff mit dem erzeugten Factory-Loop nutzbar.
 
 ## Prüfbelege
 
-62 Node-Prüfungen erfassen DSP, Clock, sichere Zustandsverwaltung, Quellwechsel und Aufnahme. Elf Browserprüfungen verwenden das tatsächliche AudioWorklet und prüfen Bedienwege, nicht stumme WAV-Aufnahmen, alle sechs Seiten sowie Desktop- und Mobilgeometrie. Fünf weitere Browserprüfungen erfassen echte Datei-/Preset-Imports und die MIDI-Bedienung. Die MIDI-Eingangslogik wird mit simulierten Clock-Nachrichten geprüft. Eine Prüfung mit dem konkreten Audio-Interface oder MIDI-Gerät des Nutzers steht aus.
+150 Node-Prüfungen erfassen DSP-Mechanismen, Clock, Zustandsverwaltung, Quellwechsel und Aufnahme. 26 Browserprüfungen verwenden das tatsächliche AudioWorklet und prüfen die bisherigen sowie die erweiterten Bedienwege, nicht stumme WAV-Aufnahmen, Datei-/Preset-Import, externe Sidechain, Bewegungsaufnahme, alle sechs Seiten und Desktop-/Mobilgeometrie. Die MIDI-Eingangslogik wird mit simulierten Clock-Nachrichten geprüft. Eine Prüfung mit dem konkreten Audio-Interface oder MIDI-Gerät des Nutzers steht aus.

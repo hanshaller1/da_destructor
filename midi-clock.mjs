@@ -10,7 +10,7 @@ export class MidiClock extends EventTarget {
  get enabled(){return !!this.access;}
  get inputs(){return Array.from(this.access?.inputs?.values()??[]).filter(input=>input.state!=='disconnected').map(input=>({id:input.id,name:input.name||'MIDI input',manufacturer:input.manufacturer||''}));}
  _emit(type,detail){this.dispatchEvent(new CustomEvent(type,{detail}));}
- _payload(kind,restart=false){return {bpm:this.bpm,playing:this.playing,restart,kind,pulses:this.pulses,beat:this.pulses/24};}
+ _payload(kind,restart=false){return {bpm:this.bpm,playing:this.playing,restart,kind,pulses:this.pulses,beat:this.pulses/24,timestamp:this.eventTime??this.now()};}
  _transport(kind,restart=false){const detail=this._payload(kind,restart);this._emit('transport',detail);this._emit('clock',detail);}
  async enable(){
   if(this.access)return true;if(this._enablePromise)return this._enablePromise;
@@ -63,8 +63,11 @@ export class MidiClock extends EventTarget {
  }
  receive(data,timestamp=this.now()){
   if(!data||!Number.isFinite(timestamp))return;
+  this.eventTime=timestamp;
   for(const status of data){
-   if(status===0xFA){this.playing=true;this.pulses=0;this._resetTiming();this._transport('start',true);}
+   if(status===0xF2){this.sppPending=2;this.sppValue=0;this.sppShift=0;}
+   else if(status<0x80&&this.sppPending){this.sppValue|=status<<this.sppShift;this.sppShift+=7;if(--this.sppPending===0){this.pulses=this.sppValue*6;this._emit('clock',this._payload('position'));}}
+   else if(status===0xFA){this.playing=true;this.pulses=0;this._resetTiming();this._transport('start',true);}
    else if(status===0xFB){this.playing=true;this.lastPulse=NaN;this._transport('continue');}
    else if(status===0xFC){this.playing=false;this._transport('stop');}
    else if(status===0xF8){

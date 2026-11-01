@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createState,sanitizeState,makeEffect,getPath,setPath,formatValue,factoryPreset,FACTORIES,TONAL_SCALES} from '../state.mjs';
+import {createState,sanitizeState,makeEffect,getPath,setPath,formatValue,factoryPreset,FACTORIES,TONAL_SCALES,parameterKind,getParameterOptions} from '../state.mjs';
 import {EFFECTS} from '../effects.mjs';
 
 const roundTrip=state=>sanitizeState(JSON.parse(JSON.stringify(state)));
@@ -113,4 +113,71 @@ test('time enum strings survive safely and legacy named vari modes become canoni
  const state=createState();state.time.vari.mode='FWD-REV';state.time.vari.model='BITCRUSH';state.time.stutter.pattern='RAMP UP';state.time.stutter.gateCurve='LOG';
  const restored=roundTrip(state);assert.equal(restored.time.vari.mode,.5);assert.equal(restored.time.vari.model,1);assert.equal(restored.time.stutter.pattern,'RAMP UP');assert.equal(restored.time.stutter.gateCurve,'LOG');
  state.time.stutter.pattern='INVALID';state.time.stutter.gateCurve='INVALID';assert.equal(roundTrip(state).time.stutter.pattern,'EVEN');assert.equal(roundTrip(state).time.stutter.gateCurve,'LINEAR');
+});
+
+test('old version-one presets retain legacy timing and gain values without changing normalized controls',()=>{
+ const state=createState();delete state.main.gainMode;delete state.time.stretch.timing;delete state.time.vari.timing;delete state.time.stutter.timing;delete state.graphs[0].timing;
+ state.main.gain=.8;state.time.stretch.grain=.37;state.time.stutter.capture=.63;
+ const restored=roundTrip(state);assert.equal(restored.main.gainMode,'legacy');assert.equal(restored.main.gain,.8);assert.equal(restored.time.stretch.timing,'legacy');assert.equal(restored.time.stretch.grain,.37);assert.equal(restored.time.stutter.capture,.63);assert.equal(restored.graphs[0].timing,'legacy');
+ assert.equal(createState().time.stretch.timing,'musical');assert.equal(createState().main.gainMode,'extended');
+});
+
+test('new musical and extended gain displays match their documented endpoints',()=>{
+ assert.equal(formatValue(0,'stretchgrain',undefined,{timing:'musical'}),'1/16');assert.equal(formatValue(1,'stretchgrain',undefined,{timing:'musical'}),'1/512');
+ assert.equal(formatValue(.5,'timecapture',undefined,{timing:'musical',engine:'stretch'}),'1/4');assert.equal(formatValue(0,'timecapture',undefined,{timing:'musical',engine:'stretch'}),'1 BAR');
+ assert.equal(formatValue(1/6,'stuttercapture',undefined,{timing:'musical'}),'1/2');assert.equal(formatValue(1,'bendtime',undefined,{timing:'musical'}),'4 BARS');
+ assert.equal(formatValue(0,'gain',undefined,{gainMode:'extended'}),'−∞ dB');assert.equal(formatValue(.25,'gain',undefined,{gainMode:'extended'}),'-6.0 dB');assert.equal(formatValue(.5,'gain',undefined,{gainMode:'extended'}),'+0.0 dB');assert.equal(formatValue(1,'gain',undefined,{gainMode:'extended'}),'+12.0 dB');
+});
+
+test('common FX stereo controls and external envelope source survive independent channel editing',()=>{
+ const state=createState(),effect=makeEffect('PRISM','fx-stereo');effect.lrLock=false;effect.muted=true;effect.sync=true;effect.params.cutoff=.2;effect.paramsR.cutoff=.8;state.fx=[effect];state.mods[0].type='env';state.mods[0].source='external';state.mods[0].targets=[route('fx.fx-stereo.paramsR.cutoff')];state.main.autoGain=.3;state.latencyComp=false;state.clock={source:'midi',deferred:false};
+ const restored=roundTrip(state);assert.deepEqual(restored.fx[0],effect);assert.equal(restored.mods[0].source,'external');assert.equal(restored.mods[0].targets[0].path,'fx.fx-stereo.paramsR.cutoff');assert.equal(restored.main.autoGain,.3);assert.equal(restored.latencyComp,false);assert.deepEqual(restored.clock,state.clock);
+ const old={...effect};delete old.paramsR;const legacy=roundTrip({...state,fx:[old]}).fx[0];assert.deepEqual(legacy.paramsR,legacy.params);assert.notEqual(legacy.paramsR,legacy.params);
+});
+
+test('CHOPPER retains 32 independent slice parameter sets and normalized routing paths',()=>{
+ const state=createState(),chopper=makeEffect('CHOPPER','fx-chop');state.fx=[chopper];chopper.slices[31].pitch=.81;chopper.slices[30].ratchet=.5;state.mods[0].targets=[route('fx.fx-chop.slices.31.pitch')];
+ const restored=roundTrip(state);assert.equal(restored.fx[0].slices.length,32);assert.equal(getPath(restored,'fx.fx-chop.slices.31.pitch'),.81);assert.equal(restored.mods[0].targets[0].path,'fx.fx-chop.slices.31.pitch');restored.fx[0].slices[0].pitch=.1;assert.equal(restored.fx[0].slices[1].pitch,.5);assert.equal(parameterKind('fx.fx-chop.slices.32.pitch',restored),null);
+});
+
+test('real cubic handle coordinates persist while graph endpoints close and invalid handles are removed',()=>{
+ const state=createState();state.graphs[0].points=[[0,.2,.5,.05,.7,.2,.6],[.5,.8,.1,.6,.9,.9,.2],[1,.9,.5]];
+ const restored=roundTrip(state);assert.deepEqual(restored.graphs[0].points[0],state.graphs[0].points[0]);assert.deepEqual(restored.graphs[0].points[1],state.graphs[0].points[1]);assert.equal(restored.graphs[0].points.at(-1)[1],.2);
+ state.graphs[0].points[0][4]=Infinity;const invalid=sanitizeState(state);assert.equal(invalid.graphs[0].points[0].length,3);assert.equal(invalid.graphs[0].timing,'musical');
+});
+
+test('automation imports only safe parameter gestures, retains boolean kind, and starts stopped',()=>{
+ const state=createState();state.fx=[makeEffect('TAPE','fx-motion')];state.automationPlaying=true;state.automation={duration:5,loop:false,events:[
+  {time:3,path:'main.pan',value:2},{time:0,path:'time.vari.on',value:true,kind:'boolean'},{time:2,path:'fx.fx-motion.paramsR.drive',value:.3},{time:1,path:'bypass',value:0,kind:'boolean'},
+  {time:1,path:'__proto__.polluted',value:1},{time:1,path:'playing',value:1},{time:1,path:'automationPlaying',value:1},{time:1,path:'fx.length',value:0},{time:6,path:'main.pan',value:.3},{time:-1,path:'main.pan',value:.3},{time:1,path:'main.pan',value:NaN}
+ ]};
+ const restored=sanitizeState(state);assert.equal(restored.automationPlaying,false);assert.equal(restored.automation.duration,5);assert.equal(restored.automation.loop,false);assert.deepEqual(restored.automation.events,[{time:0,path:'time.vari.on',value:1,kind:'boolean'},{time:1,path:'bypass',value:0,kind:'boolean'},{time:2,path:'fx.fx-motion.paramsR.drive',value:.3},{time:3,path:'main.pan',value:1}]);assert.equal(Object.prototype.polluted,undefined);
+ assert.deepEqual(roundTrip(restored).automation,restored.automation);
+});
+
+test('known string selectors expose trusted option sets and survive typed normalized automation roundtrip',()=>{
+ const state=createState(),paths=['mods.0.type','mods.1.shape','mods.2.source','time.order','time.stretch.timing','time.vari.timing','time.stutter.pattern','time.stutter.gateCurve','time.stutter.scratchPattern','fxMode','tonal.scale','tonal.chord','main.gainMode','graphs.0.timing'];
+ state.automation={duration:paths.length,loop:true,events:paths.map((path,i)=>({time:i,path,value:.75,kind:'enum'}))};
+ for(const path of paths){const options=getParameterOptions(path,state);assert.ok(Array.isArray(options)&&options.length>=2,path);assert.ok(options.every(value=>typeof value==='string'));assert.equal(parameterKind(path,state),'enum',path);}
+ assert.deepEqual(getParameterOptions('mods.0.type',state),['lfo','rand','env']);assert.deepEqual(getParameterOptions('mods.2.source',state),['internal','external']);assert.equal(getParameterOptions('mods.0.shape',state).length,19);assert.deepEqual(getParameterOptions('time.stutter.scratchPattern',state),['AUTO','BABY','TRANSFORMER','TEAR','SCRIBBLE']);
+ const restored=roundTrip(state);assert.deepEqual(restored.automation,state.automation);assert.deepEqual(roundTrip(restored).automation,state.automation);
+ for(const path of ['time.vari.mode','time.vari.model','main.gain','tonal.root'])assert.equal(getParameterOptions(path,state),null,path);
+});
+
+test('tonal pitch class automation retains normalized integer type across file export',()=>{
+ const state=createState();state.tonal.root=9;state.automation={duration:3,loop:false,events:[{time:0,path:'tonal.root',value:9/11,kind:'integer'},{time:1,path:'tonal.root',value:1,kind:'integer'},{time:2,path:'tonal.root',value:0,kind:'integer'}]};
+ assert.equal(parameterKind('tonal.root',state),'integer');const restored=roundTrip(state);assert.deepEqual(restored.automation,state.automation);assert.equal(restored.tonal.root,9);
+});
+
+test('typed events never trust file-supplied enum options or kind declarations',()=>{
+ const state=createState();state.automation={duration:2,loop:true,events:[{time:0,path:'mods.0.type',value:1,kind:'enum',options:['__proto__'],payload:{polluted:true}},{time:.5,path:'main.pan',value:.3,kind:'enum',options:['bad']},{time:1,path:'time.stutter.pattern',value:4,kind:'boolean'},{time:1.1,path:'bpm',value:1,kind:'integer'},{time:1.2,path:'playing',value:1,kind:'boolean'},{time:1.3,path:'__proto__.type',value:1,kind:'enum'},{time:1.4,path:'mods.9.type',value:1,kind:'enum'},{time:1.5,path:'mods.0.type',value:'env',kind:'enum'}]};
+ const events=sanitizeState(state).automation.events;assert.deepEqual(events,[{time:0,path:'mods.0.type',value:1,kind:'enum'},{time:.5,path:'main.pan',value:.3},{time:1,path:'time.stutter.pattern',value:1,kind:'enum'}]);assert.deepEqual(getParameterOptions('mods.0.type',state),['lfo','rand','env']);assert.equal(Object.prototype.polluted,undefined);
+});
+
+test('sequencer and real graph coordinate automation permit only existing bounded parameter paths',()=>{
+ const state=createState();state.graphs[0].points[0]=[0,.1,.5,.05,.8,.2,.6];state.automation={duration:3,loop:true,events:[
+  {time:0,path:'seq.stutter.steps.63.value',value:.75},{time:.1,path:'seq.stretch.steps.0.on',value:0,kind:'boolean'},{time:.2,path:'graphs.0.points.0.6',value:.45},{time:.3,path:'graphs.0.points.4.1',value:.6},
+  {time:1,path:'seq.stutter.steps.64.value',value:.2},{time:1.1,path:'seq.stutter.steps.00.value',value:.2},{time:1.2,path:'graphs.0.points.48.1',value:.2},{time:1.3,path:'graphs.0.points.0.7',value:.2},{time:1.4,path:'seq.stutter.patterns',value:1},{time:1.5,path:'graphs.0.points.length',value:0}
+ ]};
+ const restored=roundTrip(state);assert.equal(restored.automation.events.length,4);assert.equal(parameterKind('graphs.0.points.0.6',restored),'continuous');assert.equal(parameterKind('graphs.0.points.48.1',restored),null);assert.equal(parameterKind('seq.stutter.steps.64.value',restored),null);assert.equal(parameterKind('seq.stutter.steps.00.value',restored),null);assert.equal(restored.automation.events[1].kind,'boolean');
 });

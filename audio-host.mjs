@@ -3,6 +3,7 @@ export class AudioHost extends EventTarget {
   super();this.context=null;this.processor=null;this.buffer=null;this.source=null;this.stream=null;this.playing=false;this.position=0;this.startTime=0;
   this.sourceKind='demo';this.sourceName='FACTORY LOOP / 120 BPM';this.monitor=.75;this.recordChunks=[];this.recording=false;this.loading=false;
   this._intent=0;this._initPromise=null;this._playPromise=null;this._recordPromise=null;this._recordStopPromise=null;this._recordStopResolve=null;this._closePromise=null;
+  this.sidechain={kind:'none',name:'Not connected',buffer:null,deviceId:'',source:null,stream:null,position:0,startTime:0};this._sideIntent=0;
  }
  emit(type,detail){this.dispatchEvent(new CustomEvent(type,{detail}));}
  send(state=this.state){
@@ -23,8 +24,9 @@ export class AudioHost extends EventTarget {
    try{
     await context.audioWorklet.addModule(new URL('./audio-worklet.mjs',import.meta.url));
     if(this.context!==context||context.state==='closed')return false;
-    const processor=new AudioWorkletNode(context,'destructor-processor',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[2],channelCount:2,channelCountMode:'explicit'});
+    const processor=new AudioWorkletNode(context,'destructor-processor',{numberOfInputs:2,numberOfOutputs:1,outputChannelCount:[2],channelCount:2,channelCountMode:'explicit'});
     this.processor=processor;
+    this.inputAnalyser=context.createAnalyser();this.inputAnalyser.fftSize=1024;this.inputAnalyser.connect(processor);
     processor.onprocessorerror=()=>{
      if(this.processor!==processor)return;
      this.pause();this.finishRecording();this.processor=null;
@@ -67,7 +69,7 @@ export class AudioHost extends EventTarget {
      this.spawnBuffer();
     }
     if(!this._current(token))return false;
-    this.playing=true;this.send();this.emit('transport',true);return true;
+    this.playing=true;this.send();this.emit('transport',true);await this._resumeSidechain();return true;
    }catch(error){
     if(token!==this._intent)return false;
     if(token===this._intent){this.playing=false;this.detachSource();this.stopStream();this.send();this.emit('transport',false);}
@@ -76,18 +78,19 @@ export class AudioHost extends EventTarget {
   })();this._playPromise=promise;return promise;
  }
  spawnBuffer(){
-  this.detachSource();const source=this.context.createBufferSource();source.buffer=this.buffer;source.loop=true;source.connect(this.processor);
+  this.detachSource();const source=this.context.createBufferSource();source.buffer=this.buffer;source.loop=true;source.connect(this.inputAnalyser??this.processor);
   this.position=((this.position%this.buffer.duration)+this.buffer.duration)%this.buffer.duration;
   source.start(0,this.position);this.startTime=this.context.currentTime-this.position;this.source=source;
  }
  _pauseTransport(){
   this.stopRecording();
+  this._pauseSidechain();
   if(this.playing&&this.buffer&&this.sourceKind!=='live'&&this.context)this.position=(this.context.currentTime-this.startTime)%this.buffer.duration;
   this.playing=false;this.detachSource();this.stopStream();this.send();this.emit('transport',false);
  }
  pause(){this._nextIntent();this.loading=false;this._pauseTransport();}
  _resetTransport(){this._pauseTransport();this.position=0;this.processor?.port.postMessage({type:'reset'});}
- reset(){this._nextIntent();this.loading=false;this._resetTransport();}
+ reset(){this._nextIntent();this.loading=false;this._resetTransport();this.sidechain.position=0;}
  detachSource(){
   const source=this.source;this.source=null;if(!source)return;
   try{source.stop?.();}catch{}
@@ -122,7 +125,7 @@ export class AudioHost extends EventTarget {
   try{
    await this.init(state);if(!this._current(token))return false;
    this._resetTransport();if(!await this._connectLive(deviceId,token))return false;
-   this.sourceKind='live';this.deviceId=deviceId;this.buffer=null;this.playing=true;this.send();this.emit('transport',true);return true;
+   this.sourceKind='live';this.deviceId=deviceId;this.buffer=null;this.playing=true;this.send();this.emit('transport',true);await this._resumeSidechain();return true;
   }catch(error){if(token===this._intent){this.playing=false;this.send();this.emit('transport',false);}throw error;}
   finally{if(token===this._intent)this.loading=false;}
  }
@@ -132,7 +135,7 @@ export class AudioHost extends EventTarget {
   try{
    stream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:deviceId?{exact:deviceId}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:2}});
    if(!this._current(token)||!this.processor){for(const track of stream.getTracks())track.stop();return false;}
-   const source=this.context.createMediaStreamSource(stream);source.connect(this.processor);this.stream=stream;this.source=source;this.sourceKind='live';this.deviceId=deviceId;this.buffer=null;
+   const source=this.context.createMediaStreamSource(stream);source.connect(this.inputAnalyser??this.processor);this.stream=stream;this.source=source;this.sourceKind='live';this.deviceId=deviceId;this.buffer=null;
    this.sourceName=stream.getAudioTracks()[0]?.label||'LIVE AUDIO INPUT';this.emit('source',{name:this.sourceName,live:true});return true;
   }catch(error){
    if(stream&&stream!==this.stream)for(const track of stream.getTracks())track.stop();
@@ -142,6 +145,33 @@ export class AudioHost extends EventTarget {
  }
  async connectLive(deviceId){return this.live(deviceId,this.state);}
  async devices(){if(!navigator.mediaDevices?.enumerateDevices)return [];return(await navigator.mediaDevices.enumerateDevices()).filter(device=>device.kind==='audioinput');}
+ gesture(path,value){this.processor?.port.postMessage({type:'gesture',path,value});}
+ getInputWave(){if(!this.inputAnalyser?.getFloatTimeDomainData)return null;if(this.inputWave?.length!==this.inputAnalyser.fftSize)this.inputWave=new Float32Array(this.inputAnalyser.fftSize);this.inputAnalyser.getFloatTimeDomainData(this.inputWave);return this.inputWave;}
+ clock(beat,bpm,playing,eventTime,options={}){if(this.context&&this.processor){const age=Number.isFinite(eventTime)?Math.max(0,Math.min(.2,(performance.now()-eventTime)/1000)):0;this.processor.port.postMessage({type:'clock',beat,bpm,playing,timestamp:Math.max(0,this.context.currentTime-age),seek:!!options.seek});}}
+ async loadSidechain(file,state=this.state){
+  if(!file)return false;if(file.size>150*1024*1024)throw new Error('Sidechain-Datei ist größer als 150 MB.');const token=++this._sideIntent;await this.init(state);
+  const context=this.context,buffer=await context.decodeAudioData(await file.arrayBuffer());if(token!==this._sideIntent||context!==this.context)return false;
+  if(!Number.isFinite(buffer.duration)||buffer.duration<=0||buffer.duration>600)throw new Error('Sidechain-Loop muss zwischen 0 und 600 Sekunden lang sein.');
+  this._pauseSidechain(false);Object.assign(this.sidechain,{kind:'file',name:file.name,buffer,position:0});if(this.playing)await this._resumeSidechain();this.emit('sidechain',{...this.sidechain,buffer:undefined,source:undefined,stream:undefined});return true;
+ }
+ async connectSidechain(deviceId,state=this.state){
+  const token=++this._sideIntent;await this.init(state);if(!navigator.mediaDevices?.getUserMedia)throw new Error('Audio-Eingang ist nicht verfügbar.');
+  const context=this.context,stream=await navigator.mediaDevices.getUserMedia({audio:{deviceId:deviceId?{exact:deviceId}:undefined,echoCancellation:false,noiseSuppression:false,autoGainControl:false,channelCount:2}});
+  if(token!==this._sideIntent||context!==this.context){for(const track of stream.getTracks())track.stop();return false;}
+  this._pauseSidechain(false);const source=context.createMediaStreamSource(stream);source.connect(this.processor,0,1);Object.assign(this.sidechain,{kind:'live',name:stream.getAudioTracks()[0]?.label||'External sidechain',buffer:null,deviceId,source,stream});
+  this.emit('sidechain',{kind:'live',name:this.sidechain.name});return true;
+ }
+ _pauseSidechain(invalidate=true){
+  if(invalidate)this._sideIntent++;const s=this.sidechain;if(!s)return;
+  if(s.source&&s.buffer&&this.context)s.position=(this.context.currentTime-s.startTime)%s.buffer.duration;
+  try{s.source?.stop?.();s.source?.disconnect();}catch{}s.source=null;for(const track of s.stream?.getTracks()??[])track.stop();s.stream=null;
+ }
+ async _resumeSidechain(){
+  const s=this.sidechain;if(!s||s.source||!this.processor)return;
+  if(s.kind==='file'&&s.buffer){const source=this.context.createBufferSource();source.buffer=s.buffer;source.loop=true;source.connect(this.processor,0,1);source.start(0,Math.max(0,s.position)%s.buffer.duration);s.startTime=this.context.currentTime-s.position;s.source=source;}
+  else if(s.kind==='live')try{await this.connectSidechain(s.deviceId);}catch(error){this.emit('error',error.message);}
+ }
+ disconnectSidechain(){this._pauseSidechain();Object.assign(this.sidechain,{kind:'none',name:'Not connected',buffer:null,deviceId:'',position:0});this.emit('sidechain',{kind:'none',name:'Not connected'});}
  setVolume(value){this.monitor=Math.max(0,Math.min(1,Number.isFinite(+value)?+value:0));if(this.context?.state!=='closed')this.output?.gain.setTargetAtTime(this.monitor,this.context.currentTime,.015);}
  async record(state=this.state){
   if(this.recording)return true;if(this._recordPromise)return this._recordPromise;

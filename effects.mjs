@@ -66,13 +66,50 @@ e('GATE','DYNAMICS','Stereo-gekoppeltes Gate mit Attack, Hold und Release.',[p('
 e('MANGLE','DYNAMICS','Zweibandige Sättigung oder aufwärts liftende Multiband-Kompression.',[p('mode','MODE',0,'percent',['CLASSIC','MELT']),p('brutality','BRUTALITY',.4),p('lift','LIFT',.4),p('pump','PUMP',.3),p('grit','GRIT',.25),p('split','SPLIT',.4)]),
 e('TRANSIENT','DYNAMICS','Schnelle und langsame Hüllkurven trennen Attack und Sustain.',[p('attack','ATTACK',.7),p('sustain','SUSTAIN',.5),p('time','TIME',.3),p('release','RELEASE',.4),p('swell','SWELL',.1),p('length','LENGTH',.6),p('split','SPLIT',.5)])
 ];
-const SNAP_TYPES=new Set(['PITCH SHIFT','TRIAD','SCATTER','SCANNER','CHOPPER','STRUM','GRANULAR DELAY','GRANUVERB','MIRROR','HOWL','TOOTH','COMB','CRYSTAL','MODAL','STRINGS','MAGNET','WARP','SPECTRAL DELAY','FREQ SHIFT','FISSION']);
-for(const effect of EFFECTS)effect.snap=SNAP_TYPES.has(effect.id);
+// Advanced controls extend version-1 schemas; existing parameter keys/defaults remain valid.
+const extra=(type,params)=>EFFECTS.find(e=>e.id===type).params.push(...params.map(p=>({...p,advanced:true})));
+extra('BITROT',[p('model','MODEL',0,'percent',['CLASSIC','TREAD','MU-LAW','FLOAT','DELTA','GLIDE','ERROR FB','CODEC','STOCHASTIC','LOG']),p('rot','ROT',0),p('width','WIDTH',0),p('range','RANGE',0),p('track','TRACK',0)]);
+extra('CIRCUIT BEND',[p('hq','HQ',1,'percent',['OFF','2×'])]);
+for(const name of ['DISTORT','PLASMA','WAVEFOLDER','EXCITE','HOWL','MIRROR'])extra(name,[p('hq','HQ',1,'percent',['OFF','2×'])]);
+extra('TAPE',[p('mode','MODE',1/3,'percent',['GENTLY','NORMAL','HARD','HARSH']),p('bass','BASS',.5),p('hyst','HYST',.25),p('width','WIDTH',.5),p('hq','HQ',1,'percent',['OFF','2×'])]);
+extra('UNDERTOW',[p('divideb','DIVIDE B',.5),p('lock','LOCK',0,'percent',['CYCLE','PLL'])]);
+extra('PRISM',[p('type','TYPE',0,'percent',['SVF','MOOG','303','TRANSISTOR'])]);
+EFFECTS.find(e=>e.id==='PRISM').params.find(p=>p.key==='slope').options=['6 dB','12 dB','18 dB','24 dB'];
+extra('TOOTH',[p('track','TRACK',0)]);
+extra('TRANSMIT',[p('comp','COMP',.3),p('burst','BURST',.1)]);
+extra('VESPER',[p('cascade','CASCADE',.5),p('fmod','F-MOD',.5),p('smod','S-MOD',.3),p('tmod','T-MOD',.3),p('polarity','POLARITY',0,'percent',['+','−']),p('attack','ATTACK',.1),p('release','RELEASE',.3)]);
+extra('PITCH SHIFT',[p('tone','FB TONE',.6),p('octave','OCTAVE',.5,'percent',['−2','−1','0','+1','+2'])]);
+extra('SCATTER',[p('scramble','SCRAMBLE',.3),p('intervals','INTERVALS',0,'percent',['FREE','SCALE','CHORD'])]);
+extra('TRIAD',[p('glide','GLIDE',.3)]);
+extra('CRYSTAL',[p('voices','VOICES',1),p('scale','SCALE',0,'percent',['GLOBAL','MAJOR','MINOR','DORIAN','PENTATONIC','CHROMATIC']),p('octaves','OCTAVES',.5),p('slip','SLIP',.1),p('flutter','FLUTTER',.1),p('arprate','ARP RATE',.4),p('arpmode','ARP MODE',0,'percent',['OFF','UP','DOWN','UP/DOWN','RANDOM']),p('chord','CHORD',0,'percent',['SCALE','GLOBAL CHORD']),p('pitch','PITCH',.5,'semitone'),p('strum','STRUM',0),p('excite','EXCITE',0),p('rotate','ROTATE',0)]);
+extra('WENDY',[p('pitch','PITCH',.5,'semitone')]);
+extra('FREQ SHIFT',[p('track','TRACK',0)]);
+extra('MODAL',[p('follow','FOLLOW',0)]);
+extra('CHOPPER',[p('ratchet','RATCHET',0)]);
+EFFECTS.find(e=>e.id==='CHOPPER').sliceControls=[p('shuffle','SHUFFLE',0),p('repeat','REPEAT',0),p('pitch','PITCH',.5,'semitone'),p('reverse','REVERSE',0),p('gate','GATE',1),p('ratchet','RATCHET',0)];
+extra('LOOP',[p('mode','MODE',0,'percent',['DROP','SHUF','TRIM','STRCH','ALL']),p('stamp','STAMP',0,'percent',['OFF','CAPTURE'])]);
+extra('SCANNER',[p('capture','CAPTURE',0,'percent',['HOLD','CAPTURE'])]);
+extra('FISSION',[p('range','RANGE',0,'percent',['AUDIO','SLOW']),p('retrig','RETRIG',0),p('ratio','RATIO',0,'percent',['OFF','¼','½','1','2','4','8']),p('hq','HQ',1,'percent',['OFF','2×'])]);
+extra('FLYBY',[p('rotor','ROTOR',.3)]);
+extra('CLANG',[p('track','TRACK',0)]);
+extra('SPIRAL',[p('timer','TIME R',.4),p('hiss','HISS',0),p('taps','TAPS',.5),p('reverse','REVERSE',0),p('head','HEAD',0,'percent',['TAPS','SPACE ECHO','VOLANTE','MIMEOPHON']),p('spacing','SPACING',.5)]);
+extra('GRANULAR DELAY',[p('freq','FREQ',.4),p('random','RANDOM',.2),p('intervals','INTERVALS',0,'percent',['FREE','SCALE','CHORD']),p('retune','RETUNE',0),p('chord','CHORD',0,'percent',['GLOBAL','MAJOR','MINOR','FIFTH','OCTAVE'])]);
+extra('GRANUVERB',[p('pitchmode','PITCH MODE',0,'percent',['CONTINUOUS','OFF','+5TH','+OCT','−OCT','±OCT','RANDOM'])]);
+extra('TRANSIENT',[p('band','BAND',0,'percent',['FULL','LOW','HIGH']),p('solo','SOLO',0,'percent',['FULL','PROCESSED'])]);
+for(const name of ['SIEVE','CHROMA','CONTRAST','SEPARATE','SMEAR','FORMANT SHIFT','MAGNET','STILLS','WARP','SPECTRAL DELAY'])extra(name,[p('size','SIZE',0,'percent',['512','1K','2K','4K'])]);
+extra('MAGNET',[p('root','ROW ROOT',0,'percent',['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']),p('scale','ROW SCALE',.4,'percent',['MAJOR','MINOR','DORIAN','PENTATONIC','CHROMATIC'])]);
+EFFECTS.find(e=>e.id==='MAGNET').params.find(p=>p.key==='field').options=['SCALE','CHORD','ROW','SIDECHAIN'];
+extra('SPECTRAL DELAY',[p('gate','GATE',0),p('locut','LOW CUT',0),p('shape','SHAPE',0,'percent',['LIN','EXP','LOG','STEP','RANDOM','KEY']),p('freeze','FREEZE',0,'percent',['OFF','ON']),p('split','SPLIT',.5),p('band','BAND',0,'percent',['ALL','LOW','HIGH'])]);
+EFFECTS.find(e=>e.id==='SMEAR').params.find(p=>p.key==='hold').options=['OFF','1 BAR','1/2','1/4','1/8','1/16','1/32','1/64'];
+const SNAP_TYPES=new Set(['PITCH SHIFT','TRIAD','SCATTER','SCANNER','CHOPPER','STRUM','GRANULAR DELAY','GRANUVERB','MIRROR','HOWL','TOOTH','COMB','CRYSTAL','MODAL','STRINGS','MAGNET','WARP','SPECTRAL DELAY','FREQ SHIFT','FISSION','CHROMA','SEPARATE','UNDERTOW','WENDY']);
+// Capability metadata follows live dispatch: fixed beat-only processes have no FREE/SYNC switch.
+const SYNC_TYPES=new Set(['BITROT','CIRCUIT BEND','LOSSY','VESPER','PITCH SHIFT','SCATTER','TRIAD','FREQ SHIFT','CHOPPER','LOOP','STRUM','WENDY','CHORUS','ENSEMBLE','FLANGER','PHASER','FLYBY','ORBIT','TREMOR','SPIRAL','GRANULAR DELAY','REEL','SPECTRAL DELAY','CADENCE']);
+for(const effect of EFFECTS){effect.snap=SNAP_TYPES.has(effect.id);effect.canSync=SYNC_TYPES.has(effect.id);}
 export const EFFECT_BY_ID=Object.fromEntries(EFFECTS.map(effect=>[effect.id,effect]));
-export function makeEffect(type,id=`fx-${Date.now().toString(36)}`){const def=EFFECT_BY_ID[type];if(!def)throw new Error(`Unknown effect: ${type}`);return {id,type,on:true,mix:.5,gain:.5,snap:false,params:Object.fromEntries(def.params.map(p=>[p.key,p.default]))};}
+export function makeEffect(type,id=`fx-${Date.now().toString(36)}`){const def=EFFECT_BY_ID[type];if(!def)throw new Error(`Unknown effect: ${type}`);const params=Object.fromEntries(def.params.map(p=>[p.key,p.default]));return {id,type,on:true,muted:false,lrLock:true,sync:false,mix:.5,gain:.5,snap:false,params,paramsR:{...params},...(def.sliceControls?{slices:Array.from({length:32},()=>Object.fromEntries(def.sliceControls.map(p=>[p.key,p.default])))}:{})};}
 
 // Exact readouts for direct physical controls. Composite macros stay in percent.
-export function formatEffectValue(type,key,value,tonal={}){
+function legacyFormatEffectValue(type,key,value,tonal={}){
  const x=Math.min(1,Math.max(0,Number(value)||0)),descriptor=EFFECT_BY_ID[type]?.params.find(p=>p.key===key);
  if(descriptor?.options)return descriptor.options[Math.round(x*(descriptor.options.length-1))];
  const signed=(n,digits=1)=>`${n>=0?'+':''}${n.toFixed(digits)}`;
@@ -87,7 +124,7 @@ export function formatEffectValue(type,key,value,tonal={}){
  if(type==='EQ'&&key==='gain')return `${signed((x-.5)*36)} dB`;
  if(type==='FREQ SHIFT'&&['shiftl','shiftr'].includes(key)){
   let shift=(x-.5)*1000;
-  if(tonal.snap&&Math.abs(shift)>.001){const root=Number(tonal.root)||0,notes=tonal.scale==='major'?[0,2,4,5,7,9,11]:tonal.scale==='dorian'?[0,2,3,5,7,9,10]:tonal.scale==='pentatonic'?[0,2,4,7,9]:tonal.scale==='chromatic'?[0,1,2,3,4,5,6,7,8,9,10,11]:[0,2,3,5,7,8,10],note=69+12*Math.log2(Math.abs(shift)/440);let best=Math.round(note),distance=100;for(let n=Math.floor(note)-12;n<=Math.ceil(note)+12;n++)if(notes.includes(((n-root)%12+12)%12)&&Math.abs(n-note)<distance){best=n;distance=Math.abs(n-note);}shift=Math.sign(shift)*440*2**((best-69)/12);}
+  if((tonal.snap||tonal.params?.snap>.5)&&Math.abs(shift)>.001){const root=Number(tonal.root)||0,notes=tonal.scale==='major'?[0,2,4,5,7,9,11]:tonal.scale==='dorian'?[0,2,3,5,7,9,10]:tonal.scale==='pentatonic'?[0,2,4,7,9]:tonal.scale==='chromatic'?[0,1,2,3,4,5,6,7,8,9,10,11]:[0,2,3,5,7,8,10],note=69+12*Math.log2(Math.abs(shift)/440);let best=Math.round(note),distance=100;for(let n=Math.floor(note)-12;n<=Math.ceil(note)+12;n++)if(notes.includes(((n-root)%12+12)%12)&&Math.abs(n-note)<distance){best=n;distance=Math.abs(n-note);}shift=Math.sign(shift)*440*2**((best-69)/12);}
   else if(tonal.params?.snap>.5)shift=Math.round(shift/55)*55;
   return `${signed(shift,1)} Hz`;
  }
@@ -117,7 +154,7 @@ export function formatEffectValue(type,key,value,tonal={}){
  if(['CHOPPER','STRUM','WENDY'].includes(type)&&['division','slots','cuts'].includes(key))return `${2+Math.round(x*30)}`;
  if(type==='CADENCE'&&key==='steps')return `${2+Math.round(x*10)}`;
  if(type==='PITCH SHIFT'&&key==='fine')return `${signed((x-.5)*100,0)} ct`;
- if(type==='PITCH SHIFT'&&key==='pitch'&&tonal.params?.mode>.25)return `${signed((x-.5)*1000,0)} Hz`;
+ if(type==='PITCH SHIFT'&&key==='pitch'&&Math.round((tonal.params?.mode||0)*2)>0)return `${signed((x-.5)*1000,0)} Hz`;
  if(descriptor?.format==='semitone'){
   let semitones=(x-.5)*24;
   if(type==='MIRROR'||type==='TRIAD'||type==='GRANUVERB')semitones=(x-.5)*48;
@@ -126,4 +163,66 @@ export function formatEffectValue(type,key,value,tonal={}){
   return `${signed(semitones)} st`;
  }
  return `${Math.round(x*100)} %`;
+}
+
+export function effectLatencyHint(type,params={},sampleRate=48000){if(['SIEVE','CHROMA','CONTRAST','SEPARATE','SMEAR','FORMANT SHIFT','MAGNET','STILLS','WARP','SPECTRAL DELAY'].includes(type))return 512*2**Math.round(Math.min(1,Math.max(0,params.size||0))*3);if(type==='LOSSY')return 2048;if(type==='FLANGER')return Math.ceil(sampleRate*.02);if(type==='FREQ SHIFT'||type==='PITCH SHIFT')return 63;if(['TAPE','DISTORT','PLASMA','WAVEFOLDER','EXCITE','CIRCUIT BEND','HOWL','MIRROR','FISSION'].includes(type))return 15;return 0;}
+
+export function formatEffectValue(type,key,value,context={}){
+ const x=Math.min(1,Math.max(0,Number(value)||0)),descriptor=EFFECT_BY_ID[type]?.params.find(p=>p.key===key),sync=context.sync===true,sr=context.sampleRate||48000,bpm=context.bpm||120,params=context.params||{};
+ if(descriptor?.options)return descriptor.options[Math.round(x*(descriptor.options.length-1))];
+ const signed=(v,d=1)=>`${v>=0?'+':''}${v.toFixed(d)}`,ms=v=>`${(v*1000).toFixed(v<.1?1:0)} ms`,hz=v=>v>=1000?`${(v/1000).toFixed(v>=10000?1:2)} kHz`:`${v.toFixed(v<100?2:0)} Hz`,beat=v=>`${v.toFixed(v<1?4:2).replace(/0+$/,'').replace(/\.$/,'')} BT`;
+ const div=[4,2,1,.5,.25,.125,.0625,.03125,.015625,.0078125][Math.round(x*9)];
+ if(type==='SPECTRAL DELAY'&&key==='time')return sync?beat([.25,.5,1,2,4][Math.round(x*4)]):ms(.01+7.99*x*x);
+ if(type==='STILLS'&&key==='slice')return beat([16,8,4,2,1,.5,.25,.125][Math.round(x*7)]);
+ if(type==='STILLS'&&key==='octave')return `${signed(Math.round((x-.5)*4),0)} OCT`;
+ if(type==='CHROMA'&&key==='warp')return `${signed((x-.5)*24)} st`;
+ if(type==='CONTRAST'&&['low','high'].includes(key))return hz(x*sr*.5);
+ if(type==='CONTRAST'&&key==='sustain')return x>=.999?'HOLD':ms(.005+x*x*4);
+ if(type==='DATTORRO'&&key==='predelay')return ms(1/sr+x*.2);
+ if(type==='LOSSY'&&key==='bitrate')return `${(6+x*250).toFixed(1)} kbps`;
+ if(type==='LOSSY'&&key==='speed')return sync?`1/${2**Math.round(x*6)}`:`${[256,512,1024,2048][Math.round(x*3)]} SMPL`;
+ if(type==='CIRCUIT BEND'&&key==='rate')return sync?beat(div):ms(2-x*1.99);
+ if(type==='BITROT'&&key==='rate'&&sync)return beat(div*.5);
+ if(type==='REEL'&&key==='time')return sync?beat(.125*64**x):ms(.01+7.99*x*x);
+ if(type==='SPIRAL'&&['time','timer'].includes(key))return sync?beat(div):ms(.01+7.99*x*x);
+ if(type==='GRANULAR DELAY'&&key==='time')return sync?beat(4*2**(-Math.round(x*6))):`${(.01+20.99*x**4).toFixed(2)} s`;
+ if(type==='GRANULAR DELAY'&&key==='freq')return sync?beat(div):hz(5+95*x);
+ if(type==='CHOPPER'&&key==='size')return sync?beat(.5*16**x):ms(.25+x*3.75);
+ if(type==='CHOPPER'&&key==='ratchet')return `×${1+Math.round(x*7)}`;
+ if(type==='CHOPPER'&&key==='repeat')return `×${1+Math.round(x*7)}`;
+ if(type==='LOOP'&&key==='length')return sync?beat(.125*64**x):`${(.02+19.98*x*x).toFixed(2)} s`;
+ if(type==='LOOP'&&key==='scan')return `${(.25+x*19.75).toFixed(2)} s`;
+ if(type==='WENDY'&&key==='seek')return `${(x*16).toFixed(2)} s`;
+ if(type==='WENDY'&&key==='span')return sync?beat(.125*128**x):`${(.02+15.98*x*x).toFixed(2)} s`;
+ if(type==='WENDY'&&key==='cuts')return `${1+Math.round(x*31)}`;
+ if(type==='STRUM'&&key==='slots')return `${2+Math.round(x*14)}`;
+ if(type==='STRUM'&&key==='rate')return sync?beat(4*2**(-Math.round(x*6))):ms(.01+(1-x)*.49);
+ if(type==='SCANNER'&&key==='size')return ms(.01+x*.99);
+ if(type==='SCANNER'&&key==='scan')return `${Math.round(x*100)} %`;
+ if(type==='SCATTER'&&key==='size')return sync?beat(div):ms(.005+.995*x);
+ if(type==='SCATTER'&&key==='density'&&sync)return `×${2**Math.round(x*4)}`;
+ if(type==='UNDERTOW'&&key==='divideb')return `÷${2+Math.round(x*6)}`;
+ if(type==='FISSION'&&key==='frequency')return Math.round((params.ratio||0)*6)>0?'TRACKED':params.range>.5?hz(.05*400**x):hz(20*1000**x);
+ if(type==='CRYSTAL'&&key==='voices')return `${1+Math.round(x*59)}`;
+ if(type==='CRYSTAL'&&key==='octaves')return `${1+Math.round(x*4)} OCT`;
+ if(type==='CRYSTAL'&&key==='arprate')return beat(div);
+ if(type==='PITCH SHIFT'&&key==='delay')return sync?beat(div):ms(x);
+ if(type==='FREQ SHIFT'&&key==='time')return sync?beat(div):ms(1/sr+x*2);
+ if(type==='TRANSIENT'&&key==='split')return hz(40*250**x);
+ if(type==='TRANSIENT'&&key==='length')return ms(.005+x*x*2);
+ if(type==='CHROMA'&&key==='center'){let frequency=x*sr*.5;if(context.snap&&frequency>0){const notes=context.scale==='major'?[0,2,4,5,7,9,11]:context.scale==='dorian'?[0,2,3,5,7,9,10]:context.scale==='pentatonic'?[0,2,4,7,9]:context.scale==='chromatic'?[0,1,2,3,4,5,6,7,8,9,10,11]:[0,2,3,5,7,8,10],root=Number(context.root)||0,note=69+12*Math.log2(frequency/440);let best=Math.round(note),distance=100;for(let n=Math.floor(note)-12;n<=Math.ceil(note)+12;n++)if(notes.includes(((n-root)%12+12)%12)&&Math.abs(n-note)<distance){best=n;distance=Math.abs(n-note);}frequency=440*2**((best-69)/12);}return hz(frequency);}
+ if(type==='CHROMA'&&key==='scan')return x===0?'OFF':beat([16,8,4,2,1,.5][Math.round(x*5)]);
+ if(type==='SPECTRAL DELAY'&&key==='locut')return x===0?'OFF':hz(20*100**x);
+ if(type==='SPECTRAL DELAY'&&key==='split')return hz(60*200**x);
+ if(type==='LIQUIFY'&&key==='amount')return `${Math.round(x*32)} STG`;
+ if(type==='PHASER'&&key==='stages')return `${2+Math.round(x*10)} STG`;
+ if(type==='VESPER'&&key==='sections')return `${2+Math.round(x*10)} STG`;
+ if(type==='TAPE'&&key==='bass')return `${signed((x-.5)*12)} dB`;
+ if(type==='FLYBY'&&key==='distance')return `${(2+x*38).toFixed(1)} m`;
+ if(type==='TRIAD'&&['voice1','voice2','voice3'].includes(key)){
+  const notes=context.scale==='major'?[0,2,4,5,7,9,11]:context.scale==='dorian'?[0,2,3,5,7,9,10]:context.scale==='pentatonic'?[0,2,4,7,9]:context.scale==='chromatic'?[0,1,2,3,4,5,6,7,8,9,10,11]:[0,2,3,5,7,8,10],degree=Math.round((x-.5)*4*notes.length),octave=Math.floor(degree/notes.length),semitones=octave*12+notes[((degree%notes.length)+notes.length)%notes.length];return `${signed(degree,0)} DEG / ${signed(semitones,0)} st`;
+ }
+ if(key==='rate'&&sync){if(type==='FLANGER'||type==='PHASER')return beat([16,8,4,2,1,.5,.25,.125,.0625,.03125,.015625,.0078125][Math.round(x*11)]);if(type==='VESPER')return beat(4*2**(-Math.round(x*6)));if(type==='ORBIT'||type==='TREMOR')return beat(4*2**(-Math.round(x*9)));if(type==='CHORUS')return beat(4*2**(-Math.round(x*6)));}
+ if(type==='CADENCE'&&key==='time')return sync?beat(.5**(Math.round(x*6)-3)):ms(.01+3.99*x*x);
+ return legacyFormatEffectValue(type,key,x,context);
 }

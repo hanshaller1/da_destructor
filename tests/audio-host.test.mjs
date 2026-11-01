@@ -8,7 +8,7 @@ const buffer=(duration=4)=>({duration,sampleRate:1000,numberOfChannels:2});
 function setup({module=Promise.resolve(),decode=async()=>buffer(),media=async()=>({getTracks:()=>[],getAudioTracks:()=>[]})}={}){
  const contexts=[],processors=[];
  class Node{
-  connect(target){this.target=target;return target;}
+  connect(target,output=0,input=0){this.target=target;this.connection={output,input};return target;}
   disconnect(){this.disconnected=true;}
   start(_when,offset){this.started=offset;}
   stop(){this.stopped=true;}
@@ -85,4 +85,17 @@ test('new playback requested during close waits and opens a fresh audio context'
  const environment=setup(),host=new AudioHost(),state={playing:false};host.buffer=buffer();await host.play(state);
  const closing=host.close(),playing=host.play(state);await Promise.all([closing,playing]);
  assert.equal(environment.contexts.length,2);assert.equal(environment.contexts[0].state,'closed');assert.equal(host.context.state,'running');assert.equal(host.playing,true);
+});
+
+test('independent sidechain file connects input1 and pauses/resumes without replacing the main source',async()=>{
+ const environment=setup(),host=new AudioHost(),state={playing:false};host.buffer=buffer(4);await host.play(state);const main=host.source;
+ await host.loadSidechain({size:1,name:'kick.wav',arrayBuffer:async()=>1},state);const side=host.sidechain.source;
+ assert.equal(host.source,main);assert.deepEqual(side.connection,{output:0,input:1});assert.equal(host.sidechain.name,'kick.wav');
+ environment.contexts[0].currentTime=1;host.pause();assert.equal(side.stopped,true);assert.equal(host.sidechain.position,1);assert.equal(host.sidechain.source,null);
+ await host.play(state);assert.equal(host.sidechain.source.started,1);host.disconnectSidechain();assert.equal(host.sidechain.kind,'none');assert.equal(host.playing,true);
+});
+test('late external sidechain permission after pause closes tracks and never connects input1',async()=>{
+ const permission=deferred();let stopped=0;const environment=setup({media:()=>permission.promise}),host=new AudioHost(),state={playing:false};host.buffer=buffer();await host.play(state);
+ const pending=host.connectSidechain('external',state);await settle();host.pause();permission.resolve({getTracks:()=>[{stop(){stopped++;}}],getAudioTracks:()=>[{label:'Kick input'}]});
+ assert.equal(await pending,false);assert.equal(stopped,1);assert.equal(host.sidechain.source,null);assert.equal(environment.contexts[0].nodes.length,1);
 });
