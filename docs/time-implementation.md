@@ -16,7 +16,7 @@ A stereo ring-buffer read head couples pitch and speed. At normal forward speed,
 
 Wow and flutter use recursive 0.5 Hz and 6 Hz sine oscillators. STOP ramps the motor down and fades a stationary read head to avoid DC. SCRATCH changes read rate and direction. A direction reversal waits for a real zero crossing; input without a crossing, such as DC, fades fully to zero before reversal and then recovers.
 
-HEAT and BITCRUSH use a real **2x FIR upsample → nonlinearity → FIR reconstruction** path in musical timing. It adds 15 samples while active. The local dry path receives the same 15-sample delay, and parallel Time branches align that fixed latency before averaging. This latency is exposed as `TimeRack.latency`. Saturation switching can change the fixed algorithmic delay during performance; it is not deferred like an FFT-size change.
+HEAT and BITCRUSH use a real **2x FIR upsample → nonlinearity → FIR reconstruction** path in musical timing. It adds 15 samples while active. The local dry path receives the same 15-sample delay, and parallel Time branches align that fixed latency before averaging. This latency is exposed as `TimeRack.latency`. Saturation switching can change the fixed algorithmic delay during performance. FFT-size changes now use a separate live crossfade path with stable compensation while playing.
 
 ### STUTTER
 

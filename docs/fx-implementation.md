@@ -60,7 +60,7 @@ Der Encoder berechnet pro Frame aus 6–256 kbps ein Bitbudget. Er schreibt eine
 
 - **CHORUS:** Vier Delay-Stimmen, Classic/Dim-D/Juno-Charakter, Rate, Depth, Time, Feedback und Width.
 - **ENSEMBLE:** Vier oder sechs BBD-Stimmen. Pro Stimme takten echte Bucket-Sample-Ringe mit moduliertem Clock, Sättigung und Rekonstruktionsfilter. Juno/Solina/Dimension/Lush ändern Grundzeit, Stimmenverteilung und Bandbegrenzung.
-- **FLANGER:** Separater verzögerter Dry-Bezug und variabler Wet-Pfad erlauben tatsächliches Durchqueren von relativer Delayzeit null. Die feste Latenz beträgt 20 ms. BARBER RISE/FALL verwendet drei zeitversetzte, weich gewichtete Sweep-Bänke, deren Resets verdeckt bleiben.
+- **FLANGER:** Separater verzögerter Dry-Bezug und variabler Wet-Pfad erlauben tatsächliches Durchqueren von relativer Delayzeit null. Die feste Latenz beträgt 10 ms. BARBER RISE/FALL verwendet drei zeitversetzte, weich gewichtete Sweep-Bänke, deren Resets verdeckt bleiben.
 - **PHASER:** 2–12 Allpass-Stufen. Barber-Sweeps verwenden ebenfalls drei überlappende Bänke und getrennte Richtungen.
 - **FISSION:** Die variable Delay-FM läuft in HQ tatsächlich mit doppelter Sample-Rate, nicht bloß durch einen nachgeschalteten Filter. Audio-/Slow-Bereich, Bite, Depth, Stereo-Phase, Feedback, Skew, Beat-Retrigger, Pitch-Following-Verhältnisse und ein gekoppeltes Doppelpendel sind verarbeitet.
 - **FLYBY:** Orbit, Pass, Figure-8, Bounce, geglättete Zufallsbewegung und Rotor verändern Weglänge, Laufzeit, Doppler, Pegel und Stereoposition. Distance liegt bei 2–40 m; Air und Rotor verändern Filterung und Rotation.
@@ -78,7 +78,7 @@ Der Encoder berechnet pro Frame aus 6–256 kbps ein Bitbudget. Er schreibt eine
 
 ## Latenz und praktische Grenzen
 
-Die eigenen FIR-Oversampler verwenden 31 Taps pro Stufe und melden 15 Samples Latenz. Hilbert-Pfade melden 63 Samples, der Flanger 20 ms, LOSSY 2048 Samples und STFT-Prozessoren ihre gewählte FFT-Größe. Diese Werte unterscheiden sich bewusst von nicht zugänglichen Originalimplementierungen. Latenzändernde Konfigurationen werden bei laufendem Transport bis zum Stop zurückgestellt.
+Die eigenen FIR-Oversampler verwenden 31 Taps pro Stufe und melden 15 Samples Latenz. Hilbert-Pfade melden 63 Samples, der Flanger 10 ms, LOSSY 2048 Samples und STFT-Prozessoren ihre gewählte FFT-Größe. Diese Werte unterscheiden sich bewusst von nicht zugänglichen Originalimplementierungen. FFT-Größen wechseln bei laufendem Transport über aufgewärmte Kerne und Crossfade bei festem 4096-Sample-Ausgleich je STFT-Effekt. Latenzneutrale Umordnungen wirken sofort; tatsächlich latenzändernde Strukturkonfigurationen werden bis zum Stop zurückgestellt.
 
 Pitch-Tracking ist eine monophone YIN-Schätzung mit zusätzlicher PLL-Phasenregelung beim Subteiler. Chords oder stark geräuschhafte Quellen können mehrdeutige Schätzungen liefern. Endliche Hilbert-/Oversampling-Filter haben begrenzte Bandtrennung; besonders tiefe Frequenzen liegen außerhalb der idealen Seitenbandunterdrückung. Die eigenen nichtlinearen Filter sind digitale Funktionsmodelle, keine zugesicherte Bauteilsimulation.
 

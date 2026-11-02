@@ -8,7 +8,7 @@ class Ring {
  reset(){this.l.fill(0);this.r.fill(0);this.pos=0;}
 }
 export class ModulationEffect {
- constructor(type,sampleRate){this.type=type;this.sr=sampleRate;this.latency=type==='FLANGER'?Math.ceil(sampleRate*.02):0;this.output=new Float64Array(2);this.ref={};this.dry=type==='FLANGER'?new Ring(sampleRate*.06):null;this.wet=type==='FLANGER'?new Ring(sampleRate*.08):null;this.mem=new Float64Array(72);this.coeff=new Float64Array(72);this.feedback=new Float64Array(2);this.phase=0;this.count=0;}
+ constructor(type,sampleRate){this.type=type;this.sr=sampleRate;this.latency=type==='FLANGER'?Math.ceil(sampleRate*.01):0;this.output=new Float64Array(2);this.ref={};this.dry=type==='FLANGER'?new Ring(sampleRate*.06):null;this.wet=type==='FLANGER'?new Ring(sampleRate*.08):null;this.mem=new Float64Array(72);this.coeff=new Float64Array(72);this.feedback=new Float64Array(2);this.phase=0;this.count=0;}
  configure(ref){this.ref=ref||{};}
  reset(){this.dry?.reset();this.wet?.reset();this.mem.fill(0);this.feedback.fill(0);this.phase=0;this.count=0;}
  process(l,r,p,frame,bpm,sync=false,beat){

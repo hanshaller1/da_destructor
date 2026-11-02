@@ -114,5 +114,6 @@ export class EffectRack {
  reset(){for(const effect of this.effects)effect.reset();}
  setSidechain(l,r){this.sideL=l;this.sideR=r;for(const effect of this.effects)effect.setSidechain(l,r);}
  getMeters(reset=true){return this.effects.map(effect=>effect.meter(reset));}
+ getSpectralState(){return this.effects.filter(effect=>effect.left.spectral).map(effect=>({id:effect.ref.id,active:effect.left.spectral.activeSize,requested:effect.left.spectral.requestedSize,transitioning:effect.left.spectral.transitioning,alignment:effect.left.spectral.latency,...(effect.right?.spectral?{right:{active:effect.right.spectral.activeSize,requested:effect.right.spectral.requestedSize,transitioning:effect.right.spectral.transitioning}}:{})}));}
  process(l,r,frame,bpm,beat){if(!this.effects.length){this.out[0]=l;this.out[1]=r;return this.out;}if(this.mode==='parallel'){let a=0,b=0;const count=this.effects.length;for(const e of this.effects){const signal=e.process(l,r,frame,bpm,beat);let el=signal[0],er=signal[1];if(e.align){el=e.align.read(0,e.alignSamples);er=e.align.read(1,e.alignSamples);e.align.write(signal[0],signal[1]);}a+=el/count;b+=er/count;}this.out[0]=a;this.out[1]=b;}else{let a=l,b=r;for(const e of this.effects){const signal=e.process(a,b,frame,bpm,beat);a=signal[0];b=signal[1];}this.out[0]=a;this.out[1]=b;}return this.out;}
 }

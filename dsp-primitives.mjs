@@ -17,9 +17,33 @@ export class DelayLine {
 // Decimated YIN difference/CMND tracker. Analysis happens at 10–20 ms intervals.
 export class PitchTracker {
  constructor(sampleRate){this.decimation=Math.max(1,Math.floor(sampleRate/12000));this.sr=sampleRate/this.decimation;this.buffer=new Float32Array(1024);this.work=new Float64Array(640);this.difference=new Float64Array(384);this.reset();}
- reset(){this.buffer.fill(0);this.pos=0;this.count=0;this.sum=0;this.dc=0;this.samples=0;this.frequency=0;this.confidence=0;this.analysisCount=0;}
- process(input){this.dc+=(input-this.dc)*.001;this.sum+=input-this.dc;if(++this.count<this.decimation)return this.frequency;this.buffer[this.pos]=this.sum/this.decimation;this.pos=(this.pos+1)&1023;this.count=0;this.sum=0;this.samples++;if(this.samples>=640&&(this.samples&127)===0)this.analyze();return this.frequency;}
- analyze(){const n=256,max=Math.min(380,Math.floor(this.sr/35)),min=Math.max(2,Math.floor(this.sr/2000));for(let i=0;i<n+max;i++)this.work[i]=this.buffer[(this.pos-n-max+i)&1023];let energy=0;for(let i=0;i<n;i++)energy+=this.work[i]*this.work[i];if(energy/n<1e-8){this.confidence*=.8;if(this.confidence<.1)this.frequency=0;return;}let cumulative=0;this.difference[0]=1;for(let tau=1;tau<=max;tau++){let sum=0;for(let j=0;j<n;j++){const d=this.work[j]-this.work[j+tau];sum+=d*d;}cumulative+=sum;this.difference[tau]=sum*tau/(cumulative+1e-20);}let selected=0,best=1;for(let tau=min;tau<max;tau++){const d=this.difference[tau];if(d<best){best=d;selected=tau;}if(d<.16&&d<=this.difference[tau-1]){while(tau+1<=max&&this.difference[tau+1]<this.difference[tau])tau++;selected=tau;best=this.difference[tau];break;}}this.analysisCount++;if(best>.35||selected===0){this.confidence*=.9;return;}const left=this.difference[selected-1],center=this.difference[selected],right=this.difference[Math.min(max,selected+1)],delta=.5*(left-right)/(left-2*center+right+1e-20),hz=this.sr/(selected+clamp(delta,-.5,.5));this.frequency=this.frequency>0?this.frequency*.25+hz*.75:hz;this.confidence=clamp(1-best);}
+ reset(){this.buffer.fill(0);this.pos=0;this.count=0;this.sum=0;this.dc=0;this.samples=0;this.frequency=0;this.confidence=0;this.analysisCount=0;this.voiced=false;this.ambiguous=false;this.periodicity=0;this.fundamentalRatio=0;this.rms=0;this.invalidFrames=0;this.candidate=0;this.candidateFrames=0;}
+ process(input){input=Number.isFinite(input)?input:0;this.dc+=(input-this.dc)*.001;this.sum+=input-this.dc;if(++this.count<this.decimation)return this.frequency;this.buffer[this.pos]=this.sum/this.decimation;this.pos=(this.pos+1)&1023;this.count=0;this.sum=0;this.samples++;if(this.samples>=640&&(this.samples&127)===0)this.analyze();return this.frequency;}
+ reject(ambiguous=false){this.ambiguous=ambiguous;this.invalidFrames++;this.confidence*=.55;this.voiced=false;this.candidateFrames=0;if(this.confidence<.35||this.invalidFrames*128/this.sr>.08)this.frequency=0;}
+ analyze(){
+  const n=256,max=Math.min(380,Math.floor(this.sr/35)),min=Math.max(2,Math.floor(this.sr/2000)),length=n+max;
+  for(let i=0;i<length;i++)this.work[i]=this.buffer[(this.pos-length+i)&1023];
+  let energy=0;for(let i=0;i<n;i++)energy+=this.work[i]*this.work[i];this.rms=Math.sqrt(energy/n);this.analysisCount++;
+  if(this.rms<.0001){this.periodicity=0;this.fundamentalRatio=0;this.reject();return;}
+  let cumulative=0;this.difference[0]=1;
+  for(let tau=1;tau<=max;tau++){let sum=0;for(let j=0;j<n;j++){const d=this.work[j]-this.work[j+tau];sum+=d*d;}cumulative+=sum;this.difference[tau]=sum*tau/(cumulative+1e-20);}
+  let selected=0,best=1;
+  for(let tau=min;tau<max;tau++){const d=this.difference[tau];if(d<best){best=d;selected=tau;}if(d<.16&&d<=this.difference[tau-1]){while(tau+1<=max&&this.difference[tau+1]<this.difference[tau])tau++;selected=tau;best=this.difference[tau];break;}}
+  this.periodicity=clamp(1-best);
+  if(best>.28||selected===0){this.fundamentalRatio=0;this.reject();return;}
+  const left=this.difference[selected-1],center=this.difference[selected],right=this.difference[Math.min(max,selected+1)],delta=.5*(left-right)/(left-2*center+right+1e-20),hz=this.sr/(selected+clamp(delta,-.5,.5));
+  // A near-rational chord can have a very convincing common period but no actual
+  // fundamental there. Do not turn that missing bass into a confident control signal.
+  let re=0,im=0,weight=0,power=0;
+  for(let i=0;i<length;i++){const w=.5-.5*Math.cos(TAU*i/(length-1)),x=this.work[i],phase=TAU*hz*i/this.sr;re+=x*w*Math.cos(phase);im-=x*w*Math.sin(phase);power+=x*x*w;weight+=w;}
+  this.fundamentalRatio=clamp(2*(re*re+im*im)/(weight*power+1e-20));
+  if(this.fundamentalRatio<.035){this.reject(true);return;}
+  const confidence=this.periodicity*clamp(this.fundamentalRatio/.12);
+  if(confidence<.6){this.reject(true);return;}
+  const jump=this.frequency>0?Math.abs(Math.log2(hz/this.frequency)):0;
+  if(jump>.18){if(this.candidate>0&&Math.abs(Math.log2(hz/this.candidate))<.04)this.candidateFrames++;else this.candidateFrames=1;this.candidate=hz;if(this.candidateFrames<2){this.confidence*=.8;return;}}
+  this.frequency=jump>.18||this.frequency<=0?hz:this.frequency*.25+hz*.75;this.confidence=confidence;this.voiced=true;this.ambiguous=false;this.invalidFrames=0;this.candidateFrames=0;
+ }
 }
 
 // 127-tap odd-symmetric Hilbert FIR and matched real delay: true analytic signal.

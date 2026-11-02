@@ -2,17 +2,19 @@ import {EFFECTS} from './effects.mjs';
 
 export const clamp=(n,a=0,b=1)=>Math.max(a,Math.min(b,Number.isFinite(+n)?+n:a));
 export const TIME_CONTROLS={
- stretch:[['speed','SPEED',1,'percent'],['tempo','CAPTURE',.5,'timecapture'],['grain','GRAIN',.4,'stretchgrain'],['pitch','PITCH',.5,'pitch'],['spread','SPREAD',.2,'percent'],['scatter','SCATTER',0,'percent']],
+ stretch:[['speed','SPEED',1,'percent'],['tempo','CAPTURE',.5,'timecapture'],['grain','GRAIN',.4,'stretchgrain'],['pitch','PITCH',.5,'pitch'],['spread','SPREAD',.2,'percent'],['scatter','SCATTER',0,'percent'],['grainLength','GRAIN LENGTH',0,'grainlength']],
  vari:[['speed','SPEED',1,'percent'],['tempo','CAPTURE',.5,'timecapture'],['wow','WOW / FLUTTER',0,'percent'],['saturation','SATURATION',0,'percent'],['compress','COMPRESS',0,'percent'],['scratch','SCRATCH',.5,'bipolar']],
  stutter:[['rate','RATE',.45,'stutterrate'],['capture','CAPTURE',1/6,'stuttercapture'],['pitch','PITCH',.5,'pitch'],['ramp','PITCH RAMP',.5,'pitch'],['gate','GATE',.15,'percent'],['decay','DECAY',0,'percent'],['pan','PAN SPREAD',0,'percent'],['probability','PROBABILITY',1,'percent'],['retrigger','RETRIGGER',0,'percent'],['smooth','SMOOTH',.3,'smooth']],
- bend:[['warp','WARP',0,'warp'],['break','BREAK',0,'fracture'],['reps','REPS',.2,'reps'],['capture','TIME',1/6,'bendtime'],['width','WIDTH',0,'width'],['duck','DUCK',.5,'bipolar'],['window','WINDOW',.3,'percent']]
+ bend:[['warp','WARP',0,'warp'],['break','BREAK',0,'fracture'],['reps','REPS',.2,'reps'],['capture','TIME',1/6,'bendtime'],['width','WIDTH',0,'width'],['duck','DUCK',.5,'bipolar'],['window','WINDOW',.3,'percent']],
+ granular:[['density','DENSITY',.45,'granulardensity'],['size','SIZE',.35,'granularsize'],['pitch','PITCH',.5,'granularpitch'],['position','POSITION',.5,'percent'],['spray','SPRAY',.2,'percent'],['spread','SPREAD',.6,'percent']]
 };
-export const TIME_TOGGLES={stretch:[['sync','SYNC'],['linked','LINKED']],vari:[],stutter:[['sync','SYNC'],['link','LINK']],bend:[['sync','SYNC']]};
+export const TIME_TOGGLES={stretch:[['sync','SYNC'],['linked','LINKED']],vari:[],stutter:[['sync','SYNC'],['link','LINK']],bend:[['sync','SYNC']],granular:[['sync','SYNC']]};
 export const TIME_SELECTS={
  stretch:[{key:'timing',label:'TIMING',options:['musical','legacy'],numeric:false}],
  vari:[{key:'mode',label:'MODE',options:['FORWARD','FWD-REV','REVERSE'],numeric:true},{key:'model',label:'SAT TYPE',options:['HEAT','BITCRUSH'],numeric:true},{key:'timing',label:'TIMING',options:['musical','legacy'],numeric:false}],
  stutter:[{key:'pattern',label:'PATTERN',options:['EVEN','DOTTED','TRIPLET','SWING','RAMP UP','RAMP DOWN'],numeric:false},{key:'gateCurve',label:'GATE CURVE',options:['LINEAR','LOG','EXP'],numeric:false},{key:'timing',label:'TIMING',options:['musical','legacy'],numeric:false}],
- bend:[{key:'scratchPattern',label:'SCRATCH PATTERN',options:['AUTO','BABY','TRANSFORMER','TEAR','SCRIBBLE'],numeric:false},{key:'gateCurve',label:'GATE CURVE',options:['LINEAR','LOG','EXP'],numeric:false},{key:'timing',label:'TIMING',options:['musical','legacy'],numeric:false}]
+ bend:[{key:'scratchPattern',label:'SCRATCH PATTERN',options:['AUTO','BABY','TRANSFORMER','TEAR','SCRIBBLE'],numeric:false},{key:'gateCurve',label:'GATE CURVE',options:['LINEAR','LOG','EXP'],numeric:false},{key:'timing',label:'TIMING',options:['musical','legacy'],numeric:false}],
+ granular:[]
 };
 export const TIME_CAPTURE_BEATS=[16,8,4,2,1,.5,.25,.125,.0625];
 export const TIME_CAPTURE_LABELS=['4 BARS','2 BARS','1 BAR','1/2','1/4','1/8','1/16','1/32','1/64'];
@@ -35,7 +37,7 @@ function pathOwner(obj,path){
  const parts=pathParts(path);if(!parts)return null;let o=obj;
  for(const k of parts.slice(0,-1)){
   if(!o||typeof o!=='object')return null;
-  if(Array.isArray(o)&&k.startsWith('fx-'))o=o.find(x=>x&&Object.hasOwn(x,'id')&&x.id===k);
+  if(Array.isArray(o)&&!/^\d+$/.test(k))o=o.find(x=>x&&Object.hasOwn(x,'id')&&x.id===k);
   else if(Object.hasOwn(o,k))o=o[k];else return null;
  }
  if(!o||typeof o!=='object')return null;
@@ -71,13 +73,13 @@ export function parameterKind(path,state){
  const p=pathParts(path);if(!p||!state)return null;if(getParameterOptions(path,state))return 'enum';const value=getPath(state,path);if(typeof value!=='number'&&typeof value!=='boolean')return null;
  if(path==='bypass')return 'boolean';
  if(path==='tonal.root')return 'integer';
- if(p[0]==='time'&&p.length===3&&['stretch','vari','stutter'].includes(p[1]))return typeof value==='boolean'?'boolean':typeof value==='number'?'continuous':null;
+ if(p[0]==='time'&&p.length===3&&['stretch','vari','stutter','granular'].includes(p[1]))return typeof value==='boolean'?'boolean':typeof value==='number'?'continuous':null;
  if(p[0]==='main'&&p.length===2)return typeof value==='number'?'continuous':typeof value==='boolean'?'boolean':null;
  if(p[0]==='mods'&&p.length===3&&/^[0-3]$/.test(p[1]))return typeof value==='number'?'continuous':typeof value==='boolean'?'boolean':null;
  if(p[0]==='graphs'&&/^[0-2]$/.test(p[1])){if(p.length===3&&(p[2]==='rate'||p[2]==='reverse'))return typeof value==='boolean'?'boolean':'continuous';if(p.length===5&&p[2]==='points'&&/^\d{1,2}$/.test(p[3])&&Number(p[3])<48&&/^[0-6]$/.test(p[4])&&typeof value==='number')return 'continuous';}
  if(p[0]==='macros'&&p.length===3&&/^[0-3]$/.test(p[1])&&p[2]==='value')return 'continuous';
  if(p[0]==='xy'&&p.length===2&&(p[1]==='x'||p[1]==='y'))return 'continuous';
- if(p[0]==='seq'&&['stutter','stretch'].includes(p[1])){if(p.length===3&&p[2]==='on')return 'boolean';if(p.length===3&&p[2]==='rate')return 'continuous';if(p.length===5&&p[2]==='steps'&&/^\d{1,2}$/.test(p[3])&&Number(p[3])<64)return p[4]==='on'?'boolean':p[4]==='value'?'continuous':null;}
+ if(p[0]==='seq'&&['stutter','stretch'].includes(p[1])){if(p.length===3&&p[2]==='on')return 'boolean';if(p.length===3&&['rate','min','max'].includes(p[2]))return 'continuous';if(p.length===5&&p[2]==='steps'&&/^\d{1,2}$/.test(p[3])&&Number(p[3])<64)return p[4]==='on'?'boolean':p[4]==='value'?'continuous':null;}
  if(p[0]==='fx'){
   const item=state.fx.find(f=>f.id===p[1]);if(!item)return null;
   if(p.length===3){if(['on','muted','lrLock','sync','snap'].includes(p[2]))return 'boolean';if(p[2]==='mix'||p[2]==='gain'||Object.hasOwn(item.params,p[2]))return 'continuous';}
@@ -86,19 +88,65 @@ export function parameterKind(path,state){
  }
  return null;
 }
+export function canSequenceTarget(path,state){
+ const parts=pathParts(path);if(!parts||typeof getPath(state,path)!=='number')return false;
+ return ['time','main','fx','mods','graphs','macros','xy'].includes(parts[0])&&parameterKind(path,state)==='continuous';
+}
 export const TONAL_SCALES=['chromatic','major','minor','dorian','pentatonic'];
 export const TONAL_CHORDS=['major','minor','sus2','sus4','diminished','augmented','major7','minor7','dominant7'];
 export function createState(){return {
  version:1,bpm:120,playing:false,bypass:false,presetName:'Init',tonal:{root:0,scale:'minor',chord:'minor'},latencyComp:true,
  clock:{source:'internal',deferred:true},automationPlaying:false,automation:{duration:0,loop:true,events:[]},
- time:{order:'stretch-vari-stutter',stretch:{on:false,timing:'musical',sync:true,speed:1,tempo:.5,grain:.4,pitch:.5,spread:.2,scatter:0,mix:1,reverse:false,freeze:false,linked:false},vari:{on:false,timing:'musical',speed:1,tempo:.5,mode:0,wow:0,saturation:0,compress:0,mix:1,stop:false,scratch:.5,model:0},stutter:{on:false,timing:'musical',bend:false,sync:true,link:false,pattern:'EVEN',gateCurve:'LINEAR',scratchPattern:'AUTO',rate:.45,capture:1/6,pitch:.5,ramp:.5,gate:.15,decay:0,pan:0,probability:1,retrigger:0,smooth:.3,mix:1,reverse:false,freeze:false,warp:0,break:0,reps:.2,width:0,duck:.5,window:.3}},
+ time:{order:'stretch-vari-stutter',stretch:{on:false,timing:'musical',sync:true,speed:1,tempo:.5,grain:.4,pitch:.5,spread:.2,scatter:0,grainLength:0,mix:1,reverse:false,freeze:false,linked:false},vari:{on:false,timing:'musical',speed:1,tempo:.5,mode:0,wow:0,saturation:0,compress:0,mix:1,stop:false,scratch:.5,model:0},stutter:{on:false,timing:'musical',bend:false,sync:true,link:false,pattern:'EVEN',gateCurve:'LINEAR',scratchPattern:'AUTO',rate:.45,capture:1/6,pitch:.5,ramp:.5,gate:.15,decay:0,pan:0,probability:1,retrigger:0,smooth:.3,mix:1,reverse:false,freeze:false,warp:0,break:0,reps:.2,width:0,duck:.5,window:.3},granular:{on:false,sync:true,density:.45,size:.35,pitch:.5,position:.5,spray:.2,spread:.6,reverse:false,freeze:false,mix:1}},
  fx:[],fxMode:'serial',main:{gain:.5,gainMode:'extended',low:.5,mid:.5,high:.5,pan:.5,mix:1,compress:0,autoGain:0},
- mods:Array.from({length:4},(_,i)=>({type:'lfo',source:'internal',shape:SHAPES[i],rate:.4,depth:1,smooth:.1,jitter:0,bin:false,gain:.5,rise:.1,fall:.3,tone:.5,targets:[]})),
+ mods:Array.from({length:4},(_,i)=>({type:'lfo',source:'internal',shape:SHAPES[i],sync:true,freeRate:.4,rate:.4,depth:1,smooth:.1,jitter:0,bin:false,gain:.5,rise:.1,fall:.3,tone:.5,targets:[]})),
  graphs:Array.from({length:3},()=>({points:[[0,.1],[.25,.9],[.5,.1],[.75,.5],[1,.1]],timing:'musical',rate:.6,reverse:false,targets:[]})),
  macros:Array.from({length:4},(_,i)=>({value:0,name:['MUTATE','DISPERSE','ERODE','SPACE'][i],targets:[]})),xy:{x:.5,y:.5,targetsX:[],targetsY:[]},
- seq:Object.fromEntries(['stutter','stretch'].map(k=>[k,{on:false,rate:0,patterns:1,steps:Array.from({length:64},(_,i)=>({on:true,value:k==='stretch'?1:[.45,.45,.65,.45,.45,.8,.45,.5][i%8]}))}]))
+ seq:Object.fromEntries(['stutter','stretch'].map(k=>[k,{on:false,rate:0,patterns:1,length:0,target:'default',min:0,max:1,steps:Array.from({length:64},(_,i)=>({on:true,value:k==='stretch'?1:[.45,.45,.65,.45,.45,.8,.45,.5][i%8]}))}]))
 };}
 export function makeEffect(type,id){const d=EFFECTS.find(e=>e.id===type);if(!d)return null;const params=Object.fromEntries(d.params.map(p=>[p.key,p.default??.5]));return {id:id||`fx-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,type,on:true,muted:false,lrLock:true,sync:false,snap:false,mix:.5,gain:.5,params,paramsR:{...params},...(type==='CHOPPER'?{slices:Array.from({length:32},()=>({shuffle:0,repeat:0,pitch:.5,reverse:0,gate:1,ratchet:0}))}:{})};}
+
+// Structural automation is a small, explicit schema, never an arbitrary object path.
+export function sanitizeStructureEvent(raw,state){
+ if(!raw||raw.kind!=='structure'||!Number.isFinite(raw.time)||raw.time<0||raw.time>86400)return null;
+ const event={time:raw.time,kind:'structure',scope:raw.scope};
+ if(raw.scope==='fx'){
+  if(!Array.isArray(raw.value)||raw.value.length>62)return null;
+  const template=createState();template.fx=raw.value;event.value=sanitizeState(template).fx;
+ }else if(raw.scope==='graph'){
+  if(!Number.isInteger(raw.index)||raw.index<0||raw.index>2||!Array.isArray(raw.value)||raw.value.length<2||raw.value.length>48)return null;
+  if(raw.value.some(p=>!Array.isArray(p)||p.length<2||p.length>7||!p.every(Number.isFinite)))return null;
+  event.index=raw.index;event.value=raw.value.map(p=>p.map(v=>clamp(v))).sort((a,b)=>a[0]-b[0]);
+  event.value[0][0]=0;event.value.at(-1)[0]=1;event.value.at(-1)[1]=event.value[0][1];
+ }else if(raw.scope==='sequence'){
+  if(!['stretch','stutter'].includes(raw.name)||!raw.value||typeof raw.value!=='object'||Array.isArray(raw.value))return null;
+  const value=raw.value,target=value.target==='default'||canSequenceTarget(value.target,state)?value.target:'default';
+  event.name=raw.name;event.value={patterns:Math.round(clamp(value.patterns??1,1,4)),length:value.length>0?Math.round(clamp(value.length,1,64)):0,target,min:clamp(value.min??0),max:clamp(value.max??1)};
+ }else return null;
+ return event;
+}
+export function applyStructureEvent(state,raw){
+ const event=sanitizeStructureEvent(raw,state);if(!event)return false;
+ if(event.scope==='fx')state.fx=event.value;
+ else if(event.scope==='graph')state.graphs[event.index].points=event.value;
+ else Object.assign(state.seq[event.name],event.value);
+ return true;
+}
+export function sanitizeAutomationEvents(events,state,duration=86400){
+ const timeline=JSON.parse(JSON.stringify(state)),result=[];
+ const sorted=(Array.isArray(events)?events:[]).slice(0,50000).filter(e=>e&&typeof e==='object'&&Number.isFinite(e.time)&&e.time>=0&&e.time<=duration).sort((a,b)=>a.time-b.time||(a.kind==='structure'?-1:0)-(b.kind==='structure'?-1:0));
+ let structures=0;
+ for(const raw of sorted){
+  if(raw.kind==='structure'){
+   if(++structures>2048)continue;const event=sanitizeStructureEvent(raw,timeline);if(!event)continue;
+   applyStructureEvent(timeline,event);result.push(event);continue;
+  }
+  const kind=parameterKind(raw.path,timeline);
+  if(!kind||typeof raw.value!=='number'&&typeof raw.value!=='boolean'||!Number.isFinite(+raw.value))continue;
+  result.push({time:raw.time,path:raw.path,value:kind==='boolean'?(+raw.value>=.5?1:0):clamp(+raw.value),...(['boolean','enum','integer'].includes(kind)?{kind}:{})});
+ }
+ return result;
+}
 export function formatValue(value,format='percent',options,context={}){
  value=clamp(value);if(options)return options[Math.round(value*(options.length-1))];
  const beat=60/clamp(context.bpm??120,20,400),sr=clamp(context.sampleRate??48000,8000,192000);
@@ -129,6 +177,11 @@ export function formatValue(value,format='percent',options,context={}){
   case 'warp':return ['OFF','WOBBLE','SLIP','LURCH','STALL','SCRATCH','HAVOC'][value<.1?0:Math.min(6,1+Math.floor((value-.1)/.15))];
   case 'fracture':return value<.1?'OFF':value<.25?'NUDGE':value<.5?'SKIP':value<.7?'SCATTER':'DROPOUT';
   case 'modrate':return RATES[Math.round(value*10)];
+  case 'freerate':return `${(.01*10000**value).toFixed(value<.5?2:1)} Hz`;
+  case 'grainlength':return `${(8**value).toFixed(1)}×`;
+  case 'granularpitch':return `${value>=.5?'+':''}${Math.round(value*48-24)} st`;
+  case 'granularsize':return context.sync===false?milliseconds(.01*200**value):['1/64','1/32','1/16','1/8','1/4','1/2','1 BAR'][Math.round(value*6)];
+  case 'granulardensity':return context.sync===false?`${(1+value*79).toFixed(1)} Hz`:['1 BAR','1/2','1/4','1/8','1/16','1/32','1/64'][Math.round(value*6)];
   case 'graphrate':return (context.timing==='legacy'?RATES:GRAPH_RATES)[Math.round(value*10)];
   case 'seqrate':return SEQ_RATES[Math.round(value*4)];
   default:return `${Math.round(value*100)} %`;
@@ -158,12 +211,13 @@ export function sanitizeState(raw){
  const used=new Set(),ids=new Set();s.fx=raw.fx.slice(0,62).flatMap((f,i)=>{if(!record(f)||used.has(f.type))return [];let id=typeof f.id==='string'&&/^fx-[\w-]{1,70}$/.test(f.id)&&!ids.has(f.id)?f.id:`fx-import-${i}`;while(ids.has(id))id+='-copy';const e=makeEffect(f.type,id);if(!e)return [];used.add(f.type);ids.add(id);copy(e,f);copy(e.params,f.params);if(!record(f.paramsR))e.paramsR={...e.params};if(e.slices)e.slices.forEach((slice,j)=>copy(slice,f.slices?.[j]));return [e];});
  const allowedTarget=path=>{
   const p=pathParts(path);if(!p||path.length>100||typeof getPath(s,path)!=='number')return false;
-  if(p[0]==='time')return p.length===3&&['stretch','vari','stutter'].includes(p[1]);
+  if(p[0]==='time')return p.length===3&&['stretch','vari','stutter','granular'].includes(p[1]);
   if(p[0]==='main')return p.length===2;
   if(p[0]==='mods')return p.length===3&&/^[0-3]$/.test(p[1]);
   if(p[0]==='graphs')return p.length===3&&/^[0-2]$/.test(p[1])&&p[2]==='rate';
   if(p[0]==='macros')return p.length===3&&/^[0-3]$/.test(p[1])&&p[2]==='value';
   if(p[0]==='xy')return p.length===2&&(p[1]==='x'||p[1]==='y');
+  if(p[0]==='seq')return p.length===3&&['stretch','stutter'].includes(p[1])&&['rate','min','max'].includes(p[2]);
   if(p[0]==='fx'){const item=s.fx.find(f=>f.id===p[1]);return !!item&&((p.length===3&&(p[2]==='mix'||p[2]==='gain'||Object.hasOwn(item.params,p[2])))||(p.length===4&&['params','paramsR'].includes(p[2])&&Object.hasOwn(item[p[2]],p[3]))||(p.length===5&&p[2]==='slices'&&parameterKind(path,s)==='continuous'));}
   return false;
  };
@@ -171,10 +225,10 @@ export function sanitizeState(raw){
  s.mods.forEach((m,i)=>{const r=raw.mods?.[i];copy(m,r);if(['lfo','rand','env'].includes(r?.type))m.type=r.type;if(['internal','external'].includes(r?.source))m.source=r.source;if(SHAPES.includes(r?.shape))m.shape=r.shape;m.targets=targets(r?.targets);});
  s.graphs.forEach((g,i)=>{const r=raw.graphs?.[i];copy(g,r);g.timing=r?.timing==='musical'?'musical':'legacy';if(Array.isArray(r?.points)&&r.points.length>=2&&r.points.length<=48){g.points=r.points.filter(p=>Array.isArray(p)&&p.length>=2&&p.slice(0,2).every(Number.isFinite)).map(p=>{const q=p.length>2?[clamp(p[0]),clamp(p[1]),clamp(p[2]??.5)]:[clamp(p[0]),clamp(p[1])];if(p.length>=7&&p.slice(3,7).every(Number.isFinite))q.push(...p.slice(3,7).map(v=>clamp(v)));return q;}).sort((a,b)=>a[0]-b[0]);if(g.points.length<2)g.points=[[0,0],[1,0]];g.points[0][0]=0;g.points.at(-1)[0]=1;g.points.at(-1)[1]=g.points[0][1];}g.targets=targets(r?.targets);});
  s.macros.forEach((m,i)=>{copy(m,raw.macros?.[i]);m.name=String(raw.macros?.[i]?.name||m.name).slice(0,24);m.targets=targets(raw.macros?.[i]?.targets,5);});copy(s.xy,raw.xy);s.xy.targetsX=targets(raw.xy?.targetsX,5);s.xy.targetsY=targets(raw.xy?.targetsY,5);
- for(const k of ['stutter','stretch']){const q=s.seq[k],r=raw.seq?.[k];copy(q,r);q.patterns=Math.round(clamp(r?.patterns??1,1,4));q.steps=q.steps.map((v,i)=>({on:typeof r?.steps?.[i]?.on==='boolean'?r.steps[i].on:v.on,value:clamp(r?.steps?.[i]?.value??v.value)}));}
+ for(const k of ['stutter','stretch']){const q=s.seq[k],r=raw.seq?.[k];copy(q,r);q.patterns=Math.round(clamp(r?.patterns??1,1,4));q.length=Number.isFinite(r?.length)&&r.length>0?Math.round(clamp(r.length,1,64)):0;q.target=r?.target==='default'||canSequenceTarget(r?.target,s)?r.target:'default';q.steps=q.steps.map((v,i)=>({on:typeof r?.steps?.[i]?.on==='boolean'?r.steps[i].on:v.on,value:clamp(r?.steps?.[i]?.value??v.value)}));}
  const maxDuration=86400,declaredDuration=Number.isFinite(raw.automation?.duration)?clamp(raw.automation.duration,0,maxDuration):0;
  const events=Array.isArray(raw.automation?.events)?raw.automation.events.slice(0,50000):[];
- s.automation.events=events.flatMap(event=>{if(!record(event)||!Number.isFinite(event.time)||event.time<0||event.time>maxDuration||declaredDuration>0&&event.time>declaredDuration)return [];const kind=parameterKind(event.path,s);if(!kind||typeof event.value!=='number'&&typeof event.value!=='boolean'||!Number.isFinite(+event.value))return [];return [{time:event.time,path:event.path,value:kind==='boolean'?(+event.value>=.5?1:0):clamp(+event.value),...(['boolean','enum','integer'].includes(kind)?{kind}:{})}];}).sort((a,b)=>a.time-b.time);
+ s.automation.events=sanitizeAutomationEvents(events,s,declaredDuration||maxDuration);
  s.automation.duration=Math.max(declaredDuration,s.automation.events.at(-1)?.time||0);if(typeof raw.automation?.loop==='boolean')s.automation.loop=raw.automation.loop;
  s.playing=false;s.bypass=false;s.automationPlaying=false;return s;
 }

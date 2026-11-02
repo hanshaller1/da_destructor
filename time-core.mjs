@@ -124,7 +124,9 @@ class Stretch extends Engine {
     const desiredGrain = p.sync === false
       ? this.rate / (5 + norm(p, 'grain', .4) * 95)*(p.timing==='musical'?2:1)
       : musical?beat*division(norm(p,'grain',.4),GRAIN_BEATS)*2:beat * (1 / 128) * 2 ** (norm(p, 'grain', .4) * 5);
-    const grain = Math.max(16, Math.min(this.rate * 2, desiredGrain));
+    // A separate length control preserves every old GRAIN setting at zero while
+    // allowing long, overlapping texture grains without changing pitch or speed.
+    const grain = Math.max(16, Math.min(this.rate * 2, desiredGrain * 8 ** norm(p,'grainLength',0)));
     const hop=grain*.5,cell=Math.floor((frame+1e-7)/hop);this.hop=hop;
     if (this.filled < Math.min(desiredWindow, grain * 2 + 4)) return this.dry(l, r);
     const window = Math.min(desiredWindow, this.filled - 2);
@@ -369,16 +371,61 @@ class Stutter extends Engine {
 }
 const OFF = Object.freeze({ on: false });
 
+// Independent granular texture engine. Grains latch source position, direction,
+// pitch and length at launch; changing controls never tears an existing grain.
+export class GranularTime extends Engine {
+  constructor(rate){super(rate,8);this.voices=Array.from({length:16},()=>({age:0,length:0,start:0,ratio:1,pan:0,oldest:0,span:0}));}
+  clear(){this.nextLaunch=0;this.lastGrid=-1;this.launches=0;this.voice=0;this.activeVoices=0;this.clock=0;this.freezeReady=false;for(const voice of this.voices??[])voice.length=0;}
+  launch(p,length){
+    let available=-1;for(let i=0;i<this.voices.length;i++){const index=(this.voice+i)%this.voices.length;if(this.voices[index].age>=this.voices[index].length){available=index;break;}}
+    if(available<0)return false;
+    const voice=this.voices[available];this.voice=(available+1)%this.voices.length;
+    const span=Math.max(4,this.filled-2),oldest=this.write-span;
+    voice.age=0;voice.length=length;voice.oldest=oldest;voice.span=span;
+    voice.start=oldest+wrap(norm(p,'position',.5)*span+(this.random()-.5)*norm(p,'spray',.2)*span,span);
+    voice.ratio=2**((norm(p,'pitch',.5)-.5)*4)*(p.reverse?-1:1);
+    voice.pan=(this.random()*2-1)*norm(p,'spread',.6);this.launches++;return true;
+  }
+  process(l,r,p,frame,bpm,beat){
+    if(!this.begin(p))return this.dry(l,r);
+    const synced=p.sync!==false,seconds=60/bpm,beats=division(norm(p,'size',.35),[.0625,.125,.25,.5,1,2,4]);
+    const length=Math.max(16,Math.min(this.size-8,this.rate*(synced?seconds*beats:.01*200**norm(p,'size',.35))));
+    const warmup=Math.min(length,this.rate*.05);
+    if(!p.freeze||this.filled<warmup+4)this.push(l,r);
+    if(this.filled<warmup+4)return this.dry(l,r);
+    const density=division(norm(p,'density',.45),[4,2,1,.5,.25,.125,.0625]),period=synced?this.rate*seconds*density:this.rate/(1+norm(p,'density',.45)*79);
+    // Bound launch rate to voice capacity; this changes density, never truncates
+    // a sounding grain, even at two-second grains and 80 requested starts/s.
+    const boundedPeriod=Math.max(period,length/this.voices.length);
+    const clock=synced?(Number.isFinite(beat)?beat:frame/this.rate/seconds)*this.rate*seconds:this.clock;
+    const grid=Math.floor((clock+1e-7)/boundedPeriod);
+    if((synced&&grid!==this.lastGrid)||(!synced&&this.clock>=this.nextLaunch)){
+      this.launch(p,length);this.lastGrid=grid;this.nextLaunch=this.clock+boundedPeriod;
+    }
+    let left=0,right=0,weight=0,count=0;
+    for(const voice of this.voices){
+      if(voice.length<=0||voice.age>=voice.length)continue;
+      const w=.5-.5*Math.cos(TAU*voice.age/voice.length),position=voice.oldest+wrap(voice.start+voice.age*voice.ratio-voice.oldest,voice.span);
+      left+=sample(this.l,position)*w*Math.sqrt(1-voice.pan);right+=sample(this.r,position)*w*Math.sqrt(1+voice.pan);weight+=w;voice.age++;count++;
+    }
+    this.activeVoices=count;this.clock++;
+    // Do not divide by a nearly-zero window: attack and release remain tapered.
+    const gain=1/Math.max(1,weight);
+    return this.finish(l,r,left*gain,right*gain,norm(p,'mix',1));
+  }
+}
+
 export class TimeRack {
   constructor(sampleRate = 48000) {
     this.rate = Math.max(8000, Math.min(192000, Number(sampleRate) || 48000));
     this.stretch = new Stretch(this.rate);
     this.vari = new Varispeed(this.rate);
     this.stutter = new Stutter(this.rate);
+    this.granular = new GranularTime(this.rate);
     this.out = new Float64Array(2);
     this.alignSize=Math.ceil(this.rate*.025)+32;this.alignL=new Float64Array(this.alignSize*4);this.alignR=new Float64Array(this.alignSize*4);this.alignPos=0;
   }
-  reset() { this.stretch.reset(); this.vari.reset(); this.stutter.reset(); this.out.fill(0);this.alignL.fill(0);this.alignR.fill(0);this.alignPos=0; }
+  reset() { this.stretch.reset(); this.vari.reset(); this.stutter.reset(); this.granular.reset(); this.out.fill(0);this.alignL.fill(0);this.alignR.fill(0);this.alignPos=0; }
   get latency(){return this.vari.fade>0?this.vari.latency:0;}
   process(left, right, time = {}, frame = 0, bpm = 120, beatPosition) {
     left = Number.isFinite(left) ? left : 0; right = Number.isFinite(right) ? right : 0;
@@ -415,6 +462,8 @@ export class TimeRack {
       c = this.stutter.process(b[0], b[1], t, gridFrame, bpm,frame);
       this.out[0] = c[0]; this.out[1] = c[1];
     }
+    const granular=this.granular.process(this.out[0],this.out[1],time.granular||OFF,frame,bpm,beatPosition);
+    this.out[0]=granular[0];this.out[1]=granular[1];
     return this.out;
   }
 }

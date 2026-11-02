@@ -1,8 +1,9 @@
 import {TimeRack} from './time-core.mjs';
 import {EffectRack} from './fx-core.mjs';
 import {ModulationEngine, defaultState, sanitizeState, resolveTarget, clamp01} from './modulation.mjs';
-import {SPECTRAL_TYPES, fftSize} from './spectral.mjs';
+import {SPECTRAL_TYPES} from './spectral.mjs';
 import {effectLatencyHint} from './effects.mjs';
+import {applyStructureEvent} from './state.mjs';
 
 const finite = value => Number.isFinite(value) ? Math.max(-32, Math.min(32, value)) : 0;
 const dbGain = db => 10 ** (db / 20);
@@ -96,48 +97,50 @@ export function limitSample(value) {
 
 const copyState=value=>JSON.parse(JSON.stringify(value));
 const structure=(state,rate)=>JSON.stringify([state.latencyComp!==false,state.fxMode,state.fx.map(effect=>[effect.id,effect.type,effectLatencyHint(effect.type,effect.params,rate),effect.lrLock===false?effectLatencyHint(effect.type,effect.paramsR??effect.params,rate):0])]);
-const hasLatency=(state,rate)=>state.fx.some(effect=>effectLatencyHint(effect.type,effect.params,rate)>0);
+const chainLatency=(state,rate,live=state.playing)=>{
+ if(state.latencyComp===false)return 0;
+ const lengths=state.fx.map(effect=>SPECTRAL_TYPES.has(effect.type)&&live?4096:Math.max(effectLatencyHint(effect.type,effect.params,rate),effect.lrLock===false?effectLatencyHint(effect.type,effect.paramsR??effect.params,rate):0));
+ return state.fxMode==='parallel'?Math.max(0,...lengths):lengths.reduce((sum,length)=>sum+length,0);
+};
 
 export class DestructorRuntime{
  constructor(sampleRate=48000){
   this.sampleRate=sampleRate;this.time=new TimeRack(sampleRate);this.fx=new EffectRack(sampleRate);this.modulation=new ModulationEngine(sampleRate);this.main=new MainBus(sampleRate);
   this.frame=0;this.samples=0;this.beat=0;this.contextTime=0;this.clockError=0;this.externalClock=null;this.output=new Float64Array(2);this.playFade=0;this.bypassFade=0;this.fade=1-Math.exp(-1/(sampleRate*.01));
-  this.dryL=new Float32Array(524288);this.dryR=new Float32Array(524288);this.dryMask=this.dryL.length-1;this.dryWrite=0;this.latency=0;this.pendingLatency=false;this.pendingState=null;this.pendingSizes=new Map();this.pendingLocks=new Map();this.pendingMode=null;
-  this.automationSample=0;this.automationIndex=0;this.automationDone=false;this.automationSignature='';this.automationWasPlaying=false;
+  this.dryL=new Float32Array(524288);this.dryR=new Float32Array(524288);this.dryMask=this.dryL.length-1;this.dryWrite=0;this.latency=0;this.pendingLatency=false;this.pendingState=null;this.pendingLocks=new Map();this.pendingMode=null;
+  this.automationSample=0;this.automationIndex=0;this.automationDone=false;this.automationSignature='';this.automationWasPlaying=false;this.structureRevision=0;this.lastMeterRevision=0;
   this.configure(defaultState());
  }
  configure(raw){
   const desired=sanitizeState(raw),currentBase=this.modulation.base;
   if(!desired.playing){if(this.pendingMode)desired.fxMode=this.pendingMode;for(const effect of desired.fx)if(this.pendingLocks.has(effect.id))effect.lrLock=this.pendingLocks.get(effect.id);}
-  const nextStructure=structure(desired,this.sampleRate);
   this.desiredState=copyState(desired);let audible=desired;
-  const defer=this.structure&&currentBase?.playing&&desired.playing&&this.structure!==nextStructure&&(hasLatency(currentBase,this.sampleRate)||hasLatency(desired,this.sampleRate));
+  const defer=this.structure&&currentBase?.playing&&desired.playing&&chainLatency(currentBase,this.sampleRate)!==chainLatency(desired,this.sampleRate);
   if(defer){
    this.pendingState=copyState(desired);audible=copyState(desired);audible.fxMode=currentBase.fxMode;audible.latencyComp=currentBase.latencyComp;
    audible.fx=currentBase.fx.map(old=>{
     const updated=desired.fx.find(effect=>effect.id===old.id&&effect.type===old.type);if(!updated)return copyState(old);
-    const active=copyState(updated);if(SPECTRAL_TYPES.has(old.type)){active.params.size=old.params.size??0;if(active.paramsR)active.paramsR.size=old.paramsR?.size??old.params.size??0;}return active;
+    return copyState(updated);
    });this.pendingLatency=true;
   }else{
-   if(!desired.playing&&this.pendingSizes.size)for(const effect of audible.fx){const pending=this.pendingSizes.get(effect.id);if(pending){if(pending.left!==undefined)effect.params.size=pending.left;if(pending.right!==undefined)effect.paramsR.size=pending.right;}}
-   this.pendingState=null;if(!desired.playing){this.pendingSizes.clear();this.pendingLocks.clear();this.pendingMode=null;}this.pendingLatency=!!this.pendingMode||this.pendingSizes.size>0||this.pendingLocks.size>0;
-   if(this.structure&&this.structure!==structure(audible,this.sampleRate)){this.dryL.fill(0);this.dryR.fill(0);this.dryWrite=0;}
+   this.pendingState=null;if(!desired.playing){this.pendingLocks.clear();this.pendingMode=null;}this.pendingLatency=!!this.pendingMode||this.pendingLocks.size>0;
+   // Keep the original-source history across live, same-latency reorders.
    this.structure=structure(audible,this.sampleRate);
   }
   const automationSignature=JSON.stringify(audible.automation??{}),automationStart=audible.automationPlaying&&!this.automationWasPlaying;
   if(automationSignature!==this.automationSignature||automationStart){this.automationSample=0;this.automationIndex=0;this.automationDone=false;this.modulation.clearAutomation();}
   if(!audible.automationPlaying)this.modulation.clearAutomation();
   this.automationSignature=automationSignature;this.automationWasPlaying=!!audible.automationPlaying;
-  this.state=this.modulation.configure(audible);this.activeSizes=this.state.fx.filter(effect=>SPECTRAL_TYPES.has(effect.type)).map(effect=>({effect,left:effect.params.size??0,right:effect.paramsR?.size??effect.params.size??0,pending:this.pendingSizes.get(effect.id)??{left:undefined,right:undefined}}));
+  this.state=this.modulation.configure(audible);this.releaseSpectralBudget=!this.state.playing&&this.playFade>1e-8;
   this.activeFxMode=this.state.fxMode;this.activeLocks=this.state.fx.map(effect=>({effect,value:effect.lrLock!==false}));
   this.controlTargets=new Set([...this.modulation.bindings.map(binding=>binding.target.path),...(this.state.automation?.events??[]).map(event=>event.path)]);
-  this.fx.configure(this.state.fx,this.state.fxMode,this.state.tonal,{latencyComp:this.state.latencyComp!==false});
+  this.fx.configure(this.state.fx,this.state.fxMode,this.state.tonal,{latencyComp:this.state.latencyComp!==false,liveSizes:!!this.state.playing||this.releaseSpectralBudget});
   this.latency=this.state.latencyComp===false?0:Math.min(this.dryMask,Number(this.fx.latency)||0);
   if(desired.clock?.source==='internal'){this.externalClock=null;this.clockError=0;}
   return this.state;
  }
  setTransport(playing,restart=false){
-  if(!playing&&(this.pendingState||this.pendingSizes.size||this.pendingLocks.size||this.pendingMode)){const state=copyState(this.pendingState??this.desiredState);state.playing=false;this.configure(state);}
+  if(!!playing!==!!this.modulation.base.playing||!playing&&(this.pendingState||this.pendingLocks.size||this.pendingMode)){const state=copyState(this.pendingState??this.desiredState??this.modulation.base);state.playing=!!playing;this.configure(state);}
   this.modulation.base.playing=!!playing;this.state.playing=!!playing;if(this.desiredState)this.desiredState.playing=!!playing;if(restart)this.reset();
  }
  reset(){
@@ -152,35 +155,40 @@ export class DestructorRuntime{
   else this.clockError=target-this.beat;
  }
  gesture(path,value){return this.modulation.notifyGesture(path,typeof value==='boolean'?Number(value):value);}
+ _applyStructure(event){
+  const next=copyState(this.modulation.base);if(!applyStructureEvent(next,event))return false;
+  this.state=this.modulation.configure(next);this.activeFxMode=this.state.fxMode;
+  this.activeLocks=this.state.fx.map(effect=>({effect,value:effect.lrLock!==false}));
+  this.controlTargets=new Set([...this.modulation.bindings.map(binding=>binding.target.path),...(this.state.automation?.events??[]).map(event=>event.path).filter(Boolean)]);
+  this.fx.configure(this.state.fx,this.state.fxMode,this.state.tonal,{latencyComp:this.state.latencyComp!==false,liveSizes:!!this.state.playing||this.releaseSpectralBudget});
+  this.structure=structure(this.state,this.sampleRate);this.structureRevision++;return true;
+ }
  _automation(){
   const base=this.modulation.base,clip=base.automation;if(!base.automationPlaying||this.automationDone||!clip?.events?.length)return;
   const length=Math.max(1,Math.round((Number(clip.duration)||.01)*this.sampleRate));
   if(this.automationSample>=length){if(clip.loop!==false){this.automationSample%=length;this.automationIndex=0;this.modulation.clearAutomation();}else{this.automationDone=true;return;}}
   const time=this.automationSample/this.sampleRate;
-  while(this.automationIndex<clip.events.length){const event=clip.events[this.automationIndex];if(Number(event.time)>time+1e-10)break;this.modulation.setAutomation(event.path,event.value);this.automationIndex++;}
+  while(this.automationIndex<clip.events.length){const event=clip.events[this.automationIndex];if(Number(event.time)>time+1e-10)break;if(event.kind==='structure')this._applyStructure(event);else this.modulation.setAutomation(event.path,event.value);this.automationIndex++;}
   this.automationSample++;
  }
  process(left,right,sideLeft=0,sideRight=0){
   left=finite(left);right=finite(right);sideLeft=finite(sideLeft);sideRight=finite(sideRight);const base=this.modulation.base,bpm=this.externalClock?.bpm??base.bpm;
   this.playFade+=this.fade*((base.playing?1:0)-this.playFade);
-  if(!base.playing&&this.playFade<1e-8){this.playFade=0;this.output[0]=this.output[1]=0;this.samples++;this.contextTime+=1/this.sampleRate;return this.output;}
+  if(!base.playing&&this.playFade<1e-8){this.playFade=0;if(this.releaseSpectralBudget){this.releaseSpectralBudget=false;this.configure(this.desiredState);}this.output[0]=this.output[1]=0;this.samples++;this.contextTime+=1/this.sampleRate;return this.output;}
   if(base.playing)this._automation();let effective=this.state;if(base.playing)effective=this.modulation.tick(this.frame,bpm,this.beat);
   const controlUpdated=base.playing&&this.modulation.lastUpdate===this.frame;
   this.bypassFade+=this.fade*((effective.bypass?1:0)-this.bypassFade);
-  if(effective.fxMode!==this.activeFxMode){if(this.fx.latency>0){this.pendingMode=effective.fxMode;this.pendingLatency=true;effective.fxMode=this.activeFxMode;}else{this.fx.mode=effective.fxMode;this.activeFxMode=effective.fxMode;}}
-  else if(controlUpdated&&this.controlTargets.has('fxMode'))this.pendingMode=null;
-  let reconfigureLocks=false;
-  for(const active of this.activeLocks)if((active.effect.lrLock!==false)!==active.value){if(this.fx.latency>0){this.pendingLocks.set(active.effect.id,active.effect.lrLock!==false);active.effect.lrLock=active.value;this.pendingLatency=true;}else{active.value=active.effect.lrLock!==false;reconfigureLocks=true;}}else if(controlUpdated&&this.controlTargets.has(`fx.${active.effect.id}.lrLock`))this.pendingLocks.delete(active.effect.id);
-  if(reconfigureLocks)this.fx.configure(effective.fx,effective.fxMode,effective.tonal,{latencyComp:effective.latencyComp!==false});
-  for(const active of this.activeSizes){
-   const effect=active.effect,pending=active.pending;
-   if(fftSize(effect.params.size??0)!==fftSize(active.left)){pending.left=effect.params.size;effect.params.size=active.left;}
-   else if(controlUpdated&&(this.controlTargets.has(`fx.${effect.id}.params.size`)||this.controlTargets.has(`fx.${effect.id}.size`)))pending.left=undefined;
-   if(effect.paramsR&&fftSize(effect.paramsR.size??0)!==fftSize(active.right)){pending.right=effect.paramsR.size;effect.paramsR.size=active.right;}
-   else if(controlUpdated&&this.controlTargets.has(`fx.${effect.id}.paramsR.size`))pending.right=undefined;
-   if(pending.left!==undefined||pending.right!==undefined)this.pendingSizes.set(effect.id,pending);else this.pendingSizes.delete(effect.id);
-  }
-  this.pendingLatency=!!this.pendingState||!!this.pendingMode||this.pendingSizes.size>0||this.pendingLocks.size>0;
+  let reconfigure=false;
+  if(effective.fxMode!==this.activeFxMode){
+   if(chainLatency(effective,this.sampleRate)!==this.fx.latency&&effective.latencyComp!==false){this.pendingMode=effective.fxMode;effective.fxMode=this.activeFxMode;}
+   else{this.activeFxMode=effective.fxMode;this.pendingMode=null;reconfigure=true;}
+  }else if(controlUpdated&&this.controlTargets.has('fxMode'))this.pendingMode=null;
+  for(const active of this.activeLocks)if((active.effect.lrLock!==false)!==active.value){
+   if(chainLatency(effective,this.sampleRate)!==this.fx.latency&&effective.latencyComp!==false){this.pendingLocks.set(active.effect.id,active.effect.lrLock!==false);active.effect.lrLock=active.value;}
+   else{active.value=active.effect.lrLock!==false;this.pendingLocks.delete(active.effect.id);reconfigure=true;}
+  }else if(controlUpdated&&this.controlTargets.has(`fx.${active.effect.id}.lrLock`))this.pendingLocks.delete(active.effect.id);
+  if(reconfigure)this.fx.configure(effective.fx,effective.fxMode,effective.tonal,{latencyComp:effective.latencyComp!==false,liveSizes:!!base.playing});
+  this.pendingLatency=!!this.pendingState||!!this.pendingMode||this.pendingLocks.size>0;
   this.dryL[this.dryWrite]=left;this.dryR[this.dryWrite]=right;
   let pair=this.time.process(base.playing?left:0,base.playing?right:0,effective.time,this.frame,bpm,this.beat);
   this.modulation.feedEnvelope(pair[0],pair[1],sideLeft,sideRight);this.fx.setSidechain?.(sideLeft,sideRight);pair=this.fx.process(pair[0],pair[1],this.frame,bpm,this.beat);
@@ -191,7 +199,7 @@ export class DestructorRuntime{
   if(base.playing){const nominal=bpm/(60*this.sampleRate),correction=this.externalClock?Math.max(-nominal*.05,Math.min(nominal*.05,this.clockError*.001)):0;this.beat+=nominal+correction;this.clockError-=correction;this.frame++;}
   this.samples++;this.contextTime+=1/this.sampleRate;return this.output;
  }
- getMeterState(){return {beat:this.beat,latency:this.latency,pendingLatency:this.pendingLatency,clockDrift:this.clockError,automationPosition:this.automationSample/this.sampleRate,automationPlaying:!!this.modulation.base.automationPlaying&&!this.automationDone,values:this.modulation.getValues(),sources:this.modulation.getSources(),modPhases:Array.from(this.modulation.phase,phase=>(phase%1+1)%1),graphPhases:Array.from(this.modulation.graphPhase,phase=>(phase%1+1)%1),fxMeters:this.fx.getMeters?.(true)??[]};}
+ getMeterState(){const base=this.modulation.base,topology=this.structureRevision!==this.lastMeterRevision?{fx:copyState(base.fx),graphs:base.graphs.map(graph=>copyState(graph.points)),seq:Object.fromEntries(Object.entries(base.seq).map(([name,sequence])=>[name,Object.fromEntries(['patterns','length','target','min','max'].filter(key=>sequence[key]!==undefined).map(key=>[key,sequence[key]]))]))}:null;this.lastMeterRevision=this.structureRevision;return {structureRevision:this.structureRevision,topology,beat:this.beat,latency:this.latency,pendingLatency:this.pendingLatency,clockDrift:this.clockError,automationPosition:this.automationSample/this.sampleRate,automationPlaying:!!this.modulation.base.automationPlaying&&!this.automationDone,values:this.modulation.getValues(),sources:this.modulation.getSources(),modPhases:Array.from(this.modulation.phase,phase=>(phase%1+1)%1),graphPhases:Array.from(this.modulation.graphPhase,phase=>(phase%1+1)%1),fxMeters:this.fx.getMeters?.(true)??[],fftSizes:this.fx.getSpectralState?.()??[]};}
 }
 
 const ProcessorBase = globalThis.AudioWorkletProcessor ?? class { constructor() {this.port = {postMessage() {}, onmessage: null};} };

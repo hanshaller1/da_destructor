@@ -1,6 +1,6 @@
 # Funktionsabgleich der Vervollständigung
 
-Stand: DA DESTRUCTOR 2.0, 1. November 2026. Grundlage ist das gelieferte Recherchebriefing. Die Gegenüberstellung bezieht sich auf beschriebene Funktionen; nicht öffentlich dokumentierte proprietäre Algorithmen und darin nur als geplant oder unbestätigt bezeichnete Erweiterungen sind keine verifizierbare Gleichheitsanforderung.
+Stand: DA DESTRUCTOR 2.1, 2. November 2026. Grundlage ist das gelieferte Recherchebriefing. Die Gegenüberstellung bezieht sich auf beschriebene Funktionen; nicht öffentlich dokumentierte proprietäre Algorithmen und darin nur als geplant oder unbestätigt bezeichnete Erweiterungen sind keine verifizierbare Gleichheitsanforderung.
 
 | Früher offener Bereich | Umsetzung und Nachweis |
 | --- | --- |
@@ -8,7 +8,7 @@ Stand: DA DESTRUCTOR 2.0, 1. November 2026. Grundlage ist das gelieferte Recherc
 | Pitch-Tracking | Decimierter YIN in den vorgesehenen Tracking-Pfaden, PLL beim Subteiler; harmonikreiche Grundtöne bei mehreren Sampleraten geprüft. |
 | Oversampling/HQ | Tatsächliche 2×-FIR-Interpolation und Dezimation; FISSION rechnet auch das Delaynetz bei doppelter Rate. Aliasing-Reduktion gemessen. |
 | Stereo / gemeinsame FX-Steuerung | Unabhängige Parameter, L/R-Lock, synchrones Live-Mute/Mix/Gain auf beiden Kanälen; tatsächliche pro-FX-Wellenform und Peaks. |
-| Freie/geclockte FX-Raten | Umschalter nur bei den 24 tatsächlich umschaltbaren Prozessoren. Fest beatgebundene Capture- und Hold-Prozesse bleiben musikalisch. |
+| Freie/geclockte FX-Raten | Umschalter nur bei den 25 tatsächlich umschaltbaren Prozessoren. Fest beatgebundene Capture- und Hold-Prozesse bleiben musikalisch. |
 | MAIN | Auto Gain anhand gemessener Wet-/Dry-Energie; neuer Gain-Bereich −∞…+12 dB mit 0 dB in der Mitte; alter Bereich bei importierten Presets verfügbar. |
 | Time-Engines | Exakte Grain-Notenraster, Sample-/Pitch-unabhängige Stutter-Wiederholung, vier Scratch-Programme, Achtel-Quantisierung, editierbares Fenster. Mechanismusprüfungen statt reiner Sichtprüfung. |
 | MIDI / Clock | Aufsummierter Beat, Zeitstempelkorrektur, Transport und Song Position Pointer. Externe Präzision bleibt API-/Geräteabhängig. |
@@ -30,6 +30,14 @@ Stand: DA DESTRUCTOR 2.0, 1. November 2026. Grundlage ist das gelieferte Recherc
 
 ## Verbleibende Abgrenzung
 
-Native Plugin-Formate, DAW-Host-Automationsspuren und Host-Latenzmeldung sind keine Schnittstellen dieser eigenständigen Browser-App. Die entsprechende Browser-Bedienung ist implementiert. Es wird keine bit- oder klangidentische Reproduktion unbekannter Originalverfahren behauptet. Unbestätigte Roadmap-Punkte wie eine zusätzliche neue Time-Engine oder beliebige Sequencer-Längen werden nicht als bestehende Originalfunktion ausgegeben.
+Native Plugin-Formate, DAW-Host-Automationsspuren und Host-Latenzmeldung sind keine Schnittstellen dieser eigenständigen Browser-App. Die entsprechende Browser-Bedienung ist implementiert. Es wird keine bit- oder klangidentische Reproduktion unbekannter Originalverfahren behauptet. Die zusätzlich umgesetzten Roadmap-Punkte sind eigene Erweiterungen: Granular-Time-Engine, verlängerte Stretch-Grains, 1–64-Step-Längen und zusätzliche Ziele, FREE-LFO/RAND sowie TRANCE-GATE. Die Tatsache ihrer Umsetzung belegt keine entsprechende ausgelieferte Originalfunktion.
 
 Die unabhängige Prüfung fand während der Umsetzung weitere Verdrahtungsfehler (unter anderem BYPASS-Replay, Stereo-Mute und SNAP in Spezialmodi). Sie wurden vor der Gesamtprüfung behoben. Die konkreten technischen Tests stehen in den Implementierungsnotizen und unter `tests/`.
+
+## Ergänzung 2.1
+
+Live-SIZE mit vorgewärmten FFT-Bänken und Crossfade, latenzneutrale Live-Umordnung,
+diskrete Randomisierung und strukturelle Gestenaufnahme schließen die zuletzt
+bestätigten Funktionslücken. Drei zusätzliche Entwicklungsbereiche sind in
+`../TODO.md` sowie `dsp-assessment.md` mit ihren Grenzen dokumentiert. Die physische
+Geräteprüfung bleibt offen; passende Geräte sind laut Nutzer nicht angeschlossen.

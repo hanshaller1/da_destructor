@@ -1,4 +1,4 @@
-# DA DESTRUCTOR 2.0 – Integrationsvertrag
+# DA DESTRUCTOR 2.1 – Integrationsvertrag
 
 Die aktuelle Funktion und Grenzen sind in `docs/feature-coverage.md` und den drei Implementierungsnotizen dokumentiert. `docs/research-brief.md` ist die unveränderte Spezifikation. `docs/completion-contract.md` hält die Zuständigkeiten und Entwicklungsvereinbarungen fest.
 
@@ -27,6 +27,23 @@ Meter enthalten Ausgangspegel, Beat, Sequencerposition, tatsächliche Mod-/Graph
 
 `TimeRack.process(l,r,time,frame,bpm,beat?)` und `EffectRack.process(l,r,frame,bpm,beat?)` geben wiederverwendete Paare zurück. `EffectRack.configure(fx,mode,tonal,{latencyComp})`, `.setSidechain(l,r)`, `.getMeters(reset)` und `.reset()` sind die Rack-Schnittstellen. `latency` ist die tatsächlich zu kompensierende Verarbeitungslatenz. Aktivierungszustand, gepufferte Historie und Modulation nicht bei jedem UI-Update zurücksetzen.
 
-`SpectralProcessor.configure(params,tonal,snap,{sync})` wählt die FFT-Größe; `.process(l,r,params,frame,bpm)` verarbeitet Audio. LOSSY verwendet die separate MDCT-Implementierung. Strukturelle, latenzändernde Konfigurationen werden im Runtime bis Transport-Stop zurückgestellt.
+`SpectralProcessor.configure(params,tonal,snap,{sync})` wählt die FFT-Größe; `.process(l,r,params,frame,bpm)` verarbeitet Audio. LOSSY verwendet die separate MDCT-Implementierung. FFT-Größen wechseln live über Warmup und Crossfade. Beim Spielen reserviert jeder Spektraleffekt 4096 Samples Ausgleich; tatsächlich latenzändernde Strukturwechsel werden bis Transport-Stop zurückgestellt.
 
 Keine DOM-/Browser-UI-Abhängigkeit in DSP-Modulen, keine Laufzeit-CDNs, keine wiederholten Allokationen im Sample-Kern. Mechanismustests und Browserprüfung gehören zur Funktionsänderung; numerische Stabilität allein belegt keine vollständige Klangfunktion.
+
+## Erweiterungen 2.1
+
+Bekannte Strukturen verwenden `{time,kind:'structure',scope,value,index?,name?}`.
+`scope` ist `fx`, `graph` oder `sequence`; ausschließlich schema-validierte
+Snapshots sind zulässig. `sanitizeStructureEvent` und `applyStructureEvent`
+entscheiden über Imports und Replay. FX-IDs sind innerhalb der Ereignistimeline
+stabil. Der Recorder erhält beim Start auch den Ausgangszustand. Meter liefern
+`structureRevision` und nur bei Änderung `topology`; die UI übernimmt ausschließlich
+diese Strukturfelder, keine effektiven Parameterwerte.
+
+`seq.length:0` erhält die alte Pattern-Länge; 1–64 wählt eigene Steps. `target` ist
+`default` oder ein validierter numerischer Parameterpfad; MIN/MAX bilden Werte ab.
+`mods.sync:false` verwendet `freeRate` mit 0,01–100 Hz. `time.granular` ist eine
+optionale vierte serielle Stufe hinter dem bisherigen Time-Routing. Neue Zustände
+lassen sie ausgeschaltet. Zusätzliche Formate und alle Defaults bleiben im
+Preset-Format Version 1 kompatibel.

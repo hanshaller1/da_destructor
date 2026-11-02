@@ -14,7 +14,7 @@ export class FFT{
  transform(re,im,inverse=false){const n=this.size;for(let i=0;i<n;i++){const j=this.bits[i];if(j>i){let t=re[i];re[i]=re[j];re[j]=t;t=im[i];im[i]=im[j];im[j]=t;}}for(let size=2;size<=n;size*=2){const half=size/2,stride=n/size;for(let first=0;first<n;first+=size)for(let j=0;j<half;j++){const k=j*stride,c=this.cos[k],s=this.sin[k]*(inverse?1:-1),a=first+j,b=a+half,tr=re[b]*c-im[b]*s,ti=re[b]*s+im[b]*c;re[b]=re[a]-tr;im[b]=im[a]-ti;re[a]+=tr;im[a]+=ti;}}if(inverse)for(let i=0;i<n;i++){re[i]/=n;im[i]/=n;}}
 }
 
-export class SpectralProcessor{
+class SpectralCore{
  constructor(type,sampleRate){this.type=type;this.sr=sampleRate;this.tonal={root:0,scale:'minor',chord:'minor'};this.snap=false;this.sync=false;this.sidechainPeaks=new Float64Array(8);this.sidechainMagnitudes=new Float64Array(8);this.result=[0,0];this._allocate(512);}
  _allocate(n){
   this.n=n;this.hop=n/4;this.bins=n/2+1;this.latency=n;this.mask=n-1;this.outMask=n*4-1;this.fft=new FFT(n);
@@ -22,7 +22,7 @@ export class SpectralProcessor{
   this.input=pair(n);this.output=pair(n*4);this.sideInput=new Float64Array(n);this.sideRe=new Float64Array(n);this.sideIm=new Float64Array(n);
   this.re=new Float64Array(n);this.im=new Float64Array(n);this.a=new Float64Array(this.bins);this.b=new Float64Array(this.bins);this.mag=new Float64Array(this.bins);this.angles=new Float64Array(this.bins);this.inst=new Float64Array(this.bins);this.env=new Float64Array(this.bins);
   this.mapping=new Float64Array(this.bins);this.amps=new Float64Array(this.bins);this.peaks=new Int32Array(this.bins);this.previous=pair(this.bins);this.previousPhase=pair(this.bins);this.saved=pair(this.bins);this.phase=pair(this.bins);this.mapState=pair(this.bins);
-  this.hpss=pair(this.bins*9);this.hpssScratch=new Float64Array(19);this.hitEnv=new Float64Array(2);
+  this.hpss=pair(this.bins*9);this.hpssScratch=new Float64Array(19);this.hitEnv=new Float64Array(2);this.onsetBaseline=new Float64Array(2);
   this.sustainEnvelope=pair(this.bins);this.sustainInst=pair(this.bins);this.contrastPeak=new Float64Array(2);
   this.frozenMag=pair(this.bins);this.frozenPhase=pair(this.bins);this.frozenInst=pair(this.bins);this.wasFrozen=pair(this.bins,Uint8Array);this.delayOldPhase=pair(this.bins);this.delaySynthPhase=pair(this.bins);
   this.historyFrames=this.type==='SPECTRAL DELAY'?Math.ceil(this.sr*8/this.hop)+3:0;
@@ -36,7 +36,7 @@ export class SpectralProcessor{
  reset(){
   for(const field of ['input','output','previous','previousPhase','saved','phase','hpss','sustainEnvelope','sustainInst','frozenMag','frozenPhase','frozenInst','wasFrozen','delayOldPhase','delaySynthPhase','voiceAmp','voiceTarget','voicePhase','voiceTri','snapshotMag','snapshotInst','snapshotPhase'])for(const array of this[field]??[])array.fill(0);
   for(const array of this.mapState??[])array.fill(NaN);for(const array of this.history??[])array.fill(0);
-  this.sideInput.fill(0);this.sidechainPeaks.fill(0);this.sidechainMagnitudes.fill(0);this.voiceFreq.fill(0);this.hitEnv.fill(0);
+  this.sideInput.fill(0);this.sidechainPeaks.fill(0);this.sidechainMagnitudes.fill(0);this.voiceFreq.fill(0);this.hitEnv.fill(0);this.onsetBaseline.fill(0);
   this.contrastPeak.fill(0);
   this.write=0;this.outPos=0;this.samples=0;this.frames=0;this.seed=0x49567;this.lastSlice=-1;this.holdSlice=[-1,-1];this.sideLeft=0;this.sideRight=0;this.voiceCount=0;this.clockBeat=null;
  }
@@ -97,13 +97,17 @@ export class SpectralProcessor{
  }
  _separate(p,ch){
   const memory=this.hpss[ch],slot=this.frames%9,scratch=this.hpssScratch,prior=this.previous[ch],tonalGain=val(p,'tonal',.7)*2,noiseGain=val(p,'noise',.35)*2,hitsGain=val(p,'hits',.5)*2;
-  const decay=Math.exp(-this.hop/(this.sr*(.008+(1-val(p,'tight',.3))**2*.3)));this.hitEnv[ch]=Math.max(this.flux,this.hitEnv[ch]*decay);
+  // Stationary noise has positive spectral flux too. Compare against its
+  // learned floor so random bin fluctuations do not masquerade as drum hits.
+  const baseline=this.onsetBaseline[ch],novelty=clamp((this.flux-baseline*1.6-.06)*2.5);
+  this.onsetBaseline[ch]+=(this.flux-baseline)*(1-Math.exp(-this.hop/(this.sr*.25)));
+  const decay=Math.exp(-this.hop/(this.sr*(.04+(1-val(p,'tight',.3))**2*.3)));this.hitEnv[ch]=Math.max(novelty,this.hitEnv[ch]*decay);
   this.re.fill(0);this.im.fill(0);const interval=(val(p,'pitch',.5)-.5)*24,ratio=2**((this.snap?this.snapInterval(interval):interval)/12);
   for(let k=0;k<this.bins;k++){
    memory[slot*this.bins+k]=this.mag[k];for(let frame=0;frame<9;frame++)scratch[frame]=memory[frame*this.bins+k];const horizontal=median(scratch,9);
    for(let offset=-8;offset<=8;offset++)scratch[offset+8]=this.mag[Math.max(0,Math.min(this.bins-1,k+offset))];const vertical=median(scratch,17);
    const prominence=clamp((this.mag[k]/(vertical+this.maximum*.0001)-1.5)/3),persistence=clamp(horizontal/(this.mag[k]+1e-12)),harmonic=prominence*(.2+.8*persistence);
-   const attack=clamp(Math.max(this.hitEnv[ch],(this.mag[k]-prior[k])/(this.mag[k]+1e-12))*(.6+val(p,'tight',.3))),hit=(1-harmonic)*attack,noise=Math.max(0,1-harmonic-hit);
+   const attack=clamp(this.hitEnv[ch]*(.75+val(p,'tight',.3)*.5)),hit=(1-harmonic)*attack,noise=Math.max(0,1-harmonic-hit);
    const rotation=(ch?1:-1)*val(p,'spread',.3)*Math.sin(k*2.399963)*Math.PI*.75,nr=this.a[k]*Math.cos(rotation)-this.b[k]*Math.sin(rotation),ni=this.a[k]*Math.sin(rotation)+this.b[k]*Math.cos(rotation);
    this.re[k]=nr*noise*noiseGain+this.a[k]*hit*hitsGain;this.im[k]=ni*noise*noiseGain+this.b[k]*hit*hitsGain;
    this.mapping[k]=k*ratio;this.amps[k]=this.mag[k]*harmonic*tonalGain;
@@ -232,7 +236,7 @@ export class SpectralProcessor{
  process(left,right,p={},frame=0,bpm=120,beat=null){
   if(Number.isFinite(beat))this.clockBeat=beat;
   // configure is called on state changes by EffectRack; direct users can change SIZE here.
-  const desired=fftSize(val(p,'size',0));if(desired!==this.n)this.configure(p,this.tonal,this.snap,{sync:this.sync});
+  const desired=this.fixedSize??fftSize(val(p,'size',0));if(desired!==this.n)this.configure(p,this.tonal,this.snap,{sync:this.sync});
   this.result[0]=this.output[0][this.outPos];this.result[1]=this.output[1][this.outPos];this.output[0][this.outPos]=0;this.output[1][this.outPos]=0;
   this.input[0][this.write]=Number.isFinite(left)?left:0;this.input[1][this.write]=Number.isFinite(right)?right:0;this.sideInput[this.write]=(this.sideLeft+this.sideRight)*.5;this.write=(this.write+1)&this.mask;this.samples++;
   if(this.samples%this.hop===0){
@@ -249,5 +253,58 @@ export class SpectralProcessor{
   }
   if(this.type==='STILLS')this._voices(p);
   this.outPos=(this.outPos+1)&this.outMask;return this.result;
+ }
+}
+
+
+// During live transport reserve the largest window once. Old and new engines
+// then crossfade at one time origin, rather than changing dry/LR/parallel delay.
+// Only the active and incoming banks compute FFTs; size allocations are cached.
+export class SpectralProcessor {
+ constructor(type,sampleRate){
+  this.type=type;this.sr=sampleRate;this.tonal={root:0,scale:'minor',chord:'minor'};this.snap=false;this.sync=false;this.live=false;
+  this.core=new SpectralCore(type,sampleRate);this.banks=new Map();this.result=[0,0];this.latency=512;this.requestedSize=512;this.incoming=null;this.transition=0;this.fadeLength=Math.max(32,Math.round(sampleRate*.02));this.sideLeft=this.sideRight=0;
+ }
+ get n(){return this.core.n;} get activeSize(){return this.core.n;} get transitioning(){return !!this.incoming;}
+ get voiceCount(){return this.core.voiceCount;} get voiceFreq(){return this.core.voiceFreq;} get sidechainPeaks(){return this.core.sidechainPeaks;}
+ _bank(n,reset=true){
+  let bank=this.banks.get(n);
+  if(!bank){const core=this.core.n===n&&!this.banks.size?this.core:new SpectralCore(this.type,this.sr);core.configure({size:FFT_SIZES.indexOf(n)/3});core.fixedSize=n;bank={core,age:0,pos:0,delay:[new Float64Array(8192),new Float64Array(8192)],out:[0,0]};this.banks.set(n,bank);}
+  if(reset){bank.core.reset();bank.age=0;bank.pos=0;bank.delay[0].fill(0);bank.delay[1].fill(0);}return bank;
+ }
+ configure(params={},tonal=this.tonal,snap=this.snap,context={}){
+  this.tonal=tonal??this.tonal;this.snap=!!snap;this.sync=!!context.sync;this.params=params;const n=fftSize(val(params,'size',0));
+  if(context.liveSizes===true){
+   if(!this.live){this.active=this._bank(n,true);this.core=this.active.core;this.incoming=null;this.transition=0;this.live=true;}
+   this.requestedSize=n;this.latency=4096;this._request(n);
+  }else{
+   if(this.live){this.incoming=null;this.transition=0;this.live=false;this.core=new SpectralCore(this.type,this.sr);}
+   this.core.fixedSize=undefined;this.core.configure(params,this.tonal,this.snap,{sync:this.sync});this.latency=this.core.latency;this.requestedSize=n;
+  }
+  return this.latency;
+ }
+ _request(n){
+  this.requestedSize=n;
+  if(this.incoming){if(n===this.core.n&&this.transition===0)this.incoming=null;return;}
+  if(n!==this.core.n){this.incoming=this._bank(n,true);this.transition=0;}
+ }
+ reset(){this.core.reset();for(const bank of this.banks.values()){bank.core.reset();bank.age=0;bank.pos=0;bank.delay[0].fill(0);bank.delay[1].fill(0);}this.incoming=null;this.transition=0;}
+ setSidechain(left,right){this.sideLeft=Number.isFinite(left)?left:0;this.sideRight=Number.isFinite(right)?right:0;}
+ _processBank(bank,left,right,p,frame,bpm,beat){
+  const core=bank.core;core.tonal=this.tonal;core.snap=this.snap;core.sync=this.sync;core.setSidechain(this.sideLeft,this.sideRight);
+  const out=core.process(left,right,p,frame,bpm,beat),pos=bank.pos,pad=4096-core.n;
+  bank.delay[0][pos]=out[0];bank.delay[1][pos]=out[1];const read=(pos-pad)&8191;bank.out[0]=bank.delay[0][read];bank.out[1]=bank.delay[1][read];bank.pos=(pos+1)&8191;bank.age++;return bank.out;
+ }
+ process(left,right,p={},frame=0,bpm=120,beat=null){
+  if(!this.live){this.core.tonal=this.tonal;this.core.snap=this.snap;this.core.sync=this.sync;this.core.setSidechain(this.sideLeft,this.sideRight);const result=this.core.process(left,right,p,frame,bpm,beat);this.latency=this.core.latency;return result;}
+  const desired=fftSize(val(p,'size',0));if(desired!==this.requestedSize)this._request(desired);
+  const old=this._processBank(this.active,left,right,p,frame,bpm,beat);let a=old[0],b=old[1];
+  if(this.incoming){
+   const next=this._processBank(this.incoming,left,right,p,frame,bpm,beat);
+   if(this.incoming.age>=4096+this.incoming.core.n){const amount=Math.min(1,++this.transition/this.fadeLength);a+=(next[0]-a)*amount;b+=(next[1]-b)*amount;
+    if(amount===1){this.active=this.incoming;this.core=this.active.core;this.incoming=null;this.transition=0;if(this.requestedSize!==this.core.n)this._request(this.requestedSize);}
+   }
+  }
+  this.result[0]=a;this.result[1]=b;return this.result;
  }
 }

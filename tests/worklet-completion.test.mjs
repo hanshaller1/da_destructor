@@ -32,11 +32,11 @@ test('tempo changes accumulate beat phase and timestamped MIDI corrections stay 
  for(let frame=0;frame<1000;frame++){runtime.process(0,0);assert.ok(runtime.beat>previous);assert.ok(runtime.beat-previous<=.001051);previous=runtime.beat;}
  assert.ok(Math.abs(runtime.clockError)<.004);const frame=runtime.frame;runtime.setClock({beat:.25,bpm:60,playing:true,timestamp:runtime.contextTime,seek:true});assert.equal(runtime.beat,.25);assert.equal(runtime.frame,frame);
 });
-test('latency-changing SIZE, order and parallel graph edits queue until stop while live controls apply',()=>{
- const runtime=new DestructorRuntime(48000),state=defaultState();state.playing=true;state.fx=[effect('CHROMA','chroma')];runtime.configure(state);assert.equal(runtime.fx.latency,512);
- state.fx[0].params.size=1;state.fx[0].params.tilt=.7;state.fx.push(effect('EQ','eq'));state.fxMode='parallel';runtime.configure(state);
- assert.equal(runtime.pendingLatency,true);assert.equal(runtime.fx.latency,512);assert.equal(runtime.state.fx.length,1);assert.equal(runtime.state.fx[0].params.size,0);assert.equal(runtime.state.fx[0].params.tilt,.7);assert.equal(runtime.fx.mode,'serial');
- state.playing=false;runtime.configure(state);assert.equal(runtime.pendingLatency,false);assert.equal(runtime.fx.latency,4096);assert.equal(runtime.fx.mode,'parallel');assert.equal(runtime.state.fx.length,2);
+test('only actual chain-latency changes queue; SIZE remains live even with pending topology',()=>{
+ const runtime=new DestructorRuntime(48000),state=defaultState();state.playing=true;state.fx=[effect('CHROMA','chroma')];runtime.configure(state);assert.equal(runtime.fx.latency,4096);
+ state.fx[0].params.size=1;state.fx[0].params.tilt=.7;state.fx.push(effect('LOSSY','lossy'));runtime.configure(state);
+ assert.equal(runtime.pendingLatency,true);assert.equal(runtime.fx.latency,4096);assert.equal(runtime.state.fx.length,1);assert.equal(runtime.state.fx[0].params.size,1);assert.equal(runtime.state.fx[0].params.tilt,.7);
+ state.playing=false;runtime.configure(state);assert.equal(runtime.pendingLatency,false);assert.equal(runtime.fx.latency,6144);assert.equal(runtime.state.fx.length,2);
 });
 test('latency-compensation disable returns MAIN dry immediately and meters contain actual FX samples',()=>{
  const runtime=new DestructorRuntime(48000),state=defaultState();state.playing=true;state.latencyComp=false;state.fx=[effect('CHROMA','chroma')];state.main.mix=0;runtime.configure(state);
@@ -55,12 +55,12 @@ test('typed replay changes LFO source, tonal root, engine routing and the curren
  assert.equal(runtime.state.mods[0].type,'env');assert.equal(runtime.state.mods[0].source,'external');assert.equal(runtime.state.tonal.root,9);assert.equal(runtime.state.tonal.scale,'dorian');assert.equal(runtime.state.time.order,'parallel');assert.equal(runtime.state.time.stretch.speed,.2);assert.ok(runtime.modulation.values[0]>.2);
  assert.equal(runtime.modulation.base.mods[0].type,'lfo');assert.equal(runtime.modulation.base.tonal.root,0);
 });
-test('automated latency-bearing FX graph modes stay queued through state refresh and apply on stop',()=>{
- const runtime=new DestructorRuntime(48000),state=defaultState();state.playing=true;state.fx=[effect('CHROMA','chroma')];state.automationPlaying=true;state.automation={duration:1,loop:false,events:[{time:0,path:'fxMode',value:1,kind:'enum'},{time:0,path:'fx.chroma.lrLock',value:0,kind:'boolean'}]};runtime.configure(state);runtime.process(0,0);
- assert.equal(runtime.fx.mode,'serial');assert.equal(runtime.pendingMode,'parallel');assert.equal(runtime.pendingLocks.get('chroma'),false);assert.equal(runtime.pendingLatency,true);
- runtime.configure(state);runtime.setTransport(false);assert.equal(runtime.fx.mode,'parallel');assert.equal(runtime.fx.effects[0].ref.lrLock,false);assert.equal(runtime.pendingLatency,false);
+test('only genuinely latency-changing automated graph modes wait for stop',()=>{
+ const runtime=new DestructorRuntime(48000),state=defaultState();state.playing=true;state.fx=[effect('CHROMA','chroma'),effect('SIEVE','sieve')];state.automationPlaying=true;state.automation={duration:1,loop:false,events:[{time:0,path:'fxMode',value:1,kind:'enum'},{time:0,path:'fx.chroma.lrLock',value:0,kind:'boolean'}]};runtime.configure(state);runtime.process(0,0);
+ assert.equal(runtime.fx.mode,'serial');assert.equal(runtime.pendingMode,'parallel');assert.equal(runtime.fx.effects[0].ref.lrLock,false);assert.equal(runtime.pendingLatency,true);
+ runtime.configure(state);runtime.setTransport(false);assert.equal(runtime.fx.mode,'parallel');assert.equal(runtime.pendingLatency,false);
 });
-test('a later automated SIZE request in the active FFT bucket cancels an obsolete pending window',()=>{
- const runtime=new DestructorRuntime(48000),state=defaultState();state.playing=true;state.fx=[effect('CHROMA','chroma')];state.automationPlaying=true;state.automation={duration:1,loop:false,events:[{time:0,path:'fx.chroma.params.size',value:1},{time:.01,path:'fx.chroma.params.size',value:.05}]};runtime.configure(state);runtime.process(0,0);assert.equal(runtime.pendingLatency,true);
- for(let frame=1;frame<=480;frame++)runtime.process(0,0);assert.equal(runtime.pendingLatency,false);runtime.setTransport(false);assert.equal(runtime.fx.latency,512);
+test('a later automated SIZE request cancels an obsolete warming window without a Stop',()=>{
+ const runtime=new DestructorRuntime(48000),state=defaultState();state.playing=true;state.fx=[effect('CHROMA','chroma')];state.automationPlaying=true;state.automation={duration:1,loop:false,events:[{time:0,path:'fx.chroma.params.size',value:1},{time:.01,path:'fx.chroma.params.size',value:.05}]};runtime.configure(state);runtime.process(0,0);assert.equal(runtime.pendingLatency,false);assert.equal(runtime.fx.effects[0].left.spectral.requestedSize,4096);
+ for(let frame=1;frame<=480;frame++)runtime.process(0,0);assert.equal(runtime.pendingLatency,false);assert.equal(runtime.fx.effects[0].left.spectral.incoming,null);runtime.setTransport(false);for(let frame=0;frame<10000;frame++)runtime.process(0,0);assert.equal(runtime.fx.latency,512);
 });

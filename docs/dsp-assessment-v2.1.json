@@ -1,0 +1,605 @@
+{
+  "sampleRate": 48000,
+  "node": "v24.20.0",
+  "platform": "win32",
+  "cpu": "AMD Ryzen 7 5700X 8-Core Processor             ",
+  "logicalCpus": 16,
+  "method": "Deterministic synthetic multitone/transient probes; stereo 16bit WAVs contain dry first, then each named model. Node block timings are engineering estimates, not physical audio or browser scheduling tests.",
+  "models": [
+    {
+      "family": "tape",
+      "file": "tape-dry-models.wav",
+      "auditionGain": 1,
+      "segments": [
+        {
+          "label": "DRY",
+          "startSeconds": 0,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.14600767285085586,
+            "peak": 0.32815911264360925,
+            "dc": 0.0004172703900378483,
+            "finite": true
+          },
+          "processingMs": 7.468299999999999
+        },
+        {
+          "label": "GENTLY",
+          "startSeconds": 1.1,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.23512725948792243,
+            "peak": 0.4397696526040489,
+            "dc": 0.0004232095323011288,
+            "finite": true
+          },
+          "processingMs": 74.6103
+        },
+        {
+          "label": "NORMAL",
+          "startSeconds": 2.2,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.40577778972831496,
+            "peak": 0.6523422638098945,
+            "dc": 0.0007415775842144073,
+            "finite": true
+          },
+          "processingMs": 75.64670000000001
+        },
+        {
+          "label": "HARD",
+          "startSeconds": 3.3,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.5494727409503235,
+            "peak": 0.791151549520088,
+            "dc": 0.001006387545030755,
+            "finite": true
+          },
+          "processingMs": 67.9291
+        },
+        {
+          "label": "HARSH",
+          "startSeconds": 4.4,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.6670040999361326,
+            "peak": 0.8430421303319886,
+            "dc": 0.0018075130916418364,
+            "finite": true
+          },
+          "processingMs": 72.18960000000004
+        }
+      ]
+    },
+    {
+      "family": "prism",
+      "file": "prism-dry-models.wav",
+      "auditionGain": 1,
+      "segments": [
+        {
+          "label": "DRY",
+          "startSeconds": 0,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.14600767285085586,
+            "peak": 0.32815911264360925,
+            "dc": 0.0004172703900378483,
+            "finite": true
+          },
+          "processingMs": 6.094499999999982
+        },
+        {
+          "label": "SVF",
+          "startSeconds": 1.1,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.32745770847045647,
+            "peak": 0.4855223024137595,
+            "dc": -0.0004977010162516001,
+            "finite": true
+          },
+          "processingMs": 27.589200000000005
+        },
+        {
+          "label": "LADDER",
+          "startSeconds": 2.2,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.1487165478048602,
+            "peak": 0.24789810912273616,
+            "dc": -0.00028648726893868267,
+            "finite": true
+          },
+          "processingMs": 33.08699999999999
+        },
+        {
+          "label": "DIODE",
+          "startSeconds": 3.3,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.17185495526289502,
+            "peak": 0.56026636977406,
+            "dc": 0.003020103591863036,
+            "finite": true
+          },
+          "processingMs": 32.467700000000036
+        },
+        {
+          "label": "TRANSISTOR",
+          "startSeconds": 4.4,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.06637593737121084,
+            "peak": 0.19319048707528674,
+            "dc": 0.0018174474622841762,
+            "finite": true
+          },
+          "processingMs": 27.438999999999965
+        }
+      ]
+    },
+    {
+      "family": "wavefolder",
+      "file": "wavefolder-dry-models.wav",
+      "auditionGain": 0.7647728284735977,
+      "segments": [
+        {
+          "label": "DRY",
+          "startSeconds": 0,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.14600767285085586,
+            "peak": 0.32815911264360925,
+            "dc": 0.0004172703900378483,
+            "finite": true
+          },
+          "processingMs": 3.3243999999999687
+        },
+        {
+          "label": "FOLD",
+          "startSeconds": 1.1,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.633681915017161,
+            "peak": 1.012719494048108,
+            "dc": 1.2065684081241874e-05,
+            "finite": true
+          },
+          "processingMs": 55.01049999999998
+        },
+        {
+          "label": "259",
+          "startSeconds": 2.2,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.758445532430323,
+            "peak": 1.1822919475826146,
+            "dc": -0.0016094672924986102,
+            "finite": true
+          },
+          "processingMs": 56.14760000000001
+        },
+        {
+          "label": "SERGE",
+          "startSeconds": 3.3,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.6611078124175772,
+            "peak": 1.0886816969001738,
+            "dc": 0.00040122884297625835,
+            "finite": true
+          },
+          "processingMs": 58.04930000000002
+        },
+        {
+          "label": "LOCK",
+          "startSeconds": 4.4,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.8692010151304829,
+            "peak": 1.2421989517115815,
+            "dc": -0.00011772578519870593,
+            "finite": true
+          },
+          "processingMs": 61.52150000000006
+        },
+        {
+          "label": "WRAP",
+          "startSeconds": 5.5,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.511718081040689,
+            "peak": 1.206515373724093,
+            "dc": 0.0005332727376737899,
+            "finite": true
+          },
+          "processingMs": 51.99210000000005
+        }
+      ]
+    },
+    {
+      "family": "ensemble",
+      "file": "ensemble-dry-models.wav",
+      "auditionGain": 1,
+      "segments": [
+        {
+          "label": "DRY",
+          "startSeconds": 0,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.14600767285085586,
+            "peak": 0.32815911264360925,
+            "dc": 0.0004172703900378483,
+            "finite": true
+          },
+          "processingMs": 7.438200000000052
+        },
+        {
+          "label": "JUNO",
+          "startSeconds": 1.1,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.05306436504736588,
+            "peak": 0.2431784412625567,
+            "dc": 0.0009425651026373089,
+            "finite": true
+          },
+          "processingMs": 53.030700000000024
+        },
+        {
+          "label": "SOLINA",
+          "startSeconds": 2.2,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.03344244299164362,
+            "peak": 0.12386478397853726,
+            "dc": -3.419750538445757e-05,
+            "finite": true
+          },
+          "processingMs": 67.42919999999992
+        },
+        {
+          "label": "DIMENSION",
+          "startSeconds": 3.3,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.05343595709704122,
+            "peak": 0.21846693362048641,
+            "dc": 0.00046175943286477425,
+            "finite": true
+          },
+          "processingMs": 50.19550000000004
+        },
+        {
+          "label": "LUSH",
+          "startSeconds": 4.4,
+          "seconds": 1,
+          "metrics": {
+            "rms": 0.0510177423816518,
+            "peak": 0.17858461318844407,
+            "dc": -0.0002906532181405165,
+            "finite": true
+          },
+          "processingMs": 42.52480000000003
+        }
+      ]
+    },
+    {
+      "family": "spring",
+      "file": "spring-dry-models.wav",
+      "auditionGain": 1,
+      "segments": [
+        {
+          "label": "DRY",
+          "startSeconds": 0,
+          "seconds": 2,
+          "metrics": {
+            "rms": 0.046247895689556555,
+            "peak": 0.3281591126435908,
+            "dc": 5.2158798754759686e-05,
+            "finite": true
+          },
+          "processingMs": 4.578800000000001
+        },
+        {
+          "label": "SHORT",
+          "startSeconds": 2.1,
+          "seconds": 2,
+          "metrics": {
+            "rms": 0.01521059542227547,
+            "peak": 0.11183087162926657,
+            "dc": 7.64140440507533e-05,
+            "finite": true
+          },
+          "processingMs": 147.39739999999983
+        },
+        {
+          "label": "LONG",
+          "startSeconds": 4.2,
+          "seconds": 2,
+          "metrics": {
+            "rms": 0.06865111994634658,
+            "peak": 0.18519901336450462,
+            "dc": 0.0002114424603791137,
+            "finite": true
+          },
+          "processingMs": 148.3514
+        },
+        {
+          "label": "RIPPLE",
+          "startSeconds": 6.3,
+          "seconds": 2,
+          "metrics": {
+            "rms": 0.036577917032915484,
+            "peak": 0.1861890334023968,
+            "dc": 8.898902692547679e-05,
+            "finite": true
+          },
+          "processingMs": 142.57050000000004
+        },
+        {
+          "label": "CRASH",
+          "startSeconds": 8.4,
+          "seconds": 2,
+          "metrics": {
+            "rms": 0.036338884030797415,
+            "peak": 0.18523552812259972,
+            "dc": 6.136843482413771e-05,
+            "finite": true
+          },
+          "processingMs": 141.8976
+        }
+      ]
+    }
+  ],
+  "pitch": [
+    {
+      "kind": "monophonic-plus-noise",
+      "frequency": 219.55842695728512,
+      "confidence": 0.988899685497014,
+      "fundamentalRatio": 0.9892286746631346,
+      "voiced": true,
+      "ambiguous": false
+    },
+    {
+      "kind": "noise",
+      "frequency": 0,
+      "confidence": 0,
+      "fundamentalRatio": 0,
+      "voiced": false,
+      "ambiguous": false
+    },
+    {
+      "kind": "C-major-chord",
+      "frequency": 0,
+      "confidence": 0,
+      "fundamentalRatio": 8.670210235143149e-08,
+      "voiced": false,
+      "ambiguous": true
+    },
+    {
+      "kind": "percussion",
+      "frequency": 0,
+      "confidence": 0,
+      "fundamentalRatio": 0,
+      "voiced": false,
+      "ambiguous": false
+    }
+  ],
+  "patches": [
+    {
+      "name": "tape-performance",
+      "sampleRate": 48000,
+      "effects": [
+        "TAPE",
+        "PRISM",
+        "SPIRAL"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 2.6666666666666665,
+      "medianBlockMs": 0.553899999999885,
+      "p95BlockMs": 0.6639999999999873,
+      "p99BlockMs": 0.8597999999999502,
+      "overBudgetBlocks": 0,
+      "measuredBlocks": 656,
+      "maxBlockMs": 1.1135999999999058,
+      "medianBudgetRatio": 0.2077124999999569,
+      "p95BudgetRatio": 0.24899999999999523,
+      "peak": 0.62879613957127,
+      "finite": true
+    },
+    {
+      "name": "rhythm-performance",
+      "sampleRate": 48000,
+      "effects": [
+        "CHOPPER",
+        "GATE",
+        "SPIRAL"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 2.6666666666666665,
+      "medianBlockMs": 0.3121000000001004,
+      "p95BlockMs": 0.42430000000013024,
+      "p99BlockMs": 0.578899999999976,
+      "overBudgetBlocks": 0,
+      "measuredBlocks": 656,
+      "maxBlockMs": 0.7853000000000065,
+      "medianBudgetRatio": 0.11703750000003765,
+      "p95BudgetRatio": 0.15911250000004884,
+      "peak": 0.22696353129600066,
+      "finite": true
+    },
+    {
+      "name": "granular-memory",
+      "sampleRate": 48000,
+      "effects": [
+        "SCATTER",
+        "GRANULAR DELAY",
+        "DATTORRO"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 2.6666666666666665,
+      "medianBlockMs": 0.4430999999999585,
+      "p95BlockMs": 0.5812999999998283,
+      "p99BlockMs": 0.7125999999998385,
+      "overBudgetBlocks": 0,
+      "measuredBlocks": 656,
+      "maxBlockMs": 1.089100000000144,
+      "medianBudgetRatio": 0.16616249999998445,
+      "p95BudgetRatio": 0.2179874999999356,
+      "peak": 0.16805467879984684,
+      "finite": true
+    },
+    {
+      "name": "spectral-performance",
+      "sampleRate": 48000,
+      "effects": [
+        "FORMANT SHIFT",
+        "MAGNET",
+        "SPECTRAL DELAY"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 2.6666666666666665,
+      "medianBlockMs": 0.1835999999998421,
+      "p95BlockMs": 2.515899999999874,
+      "p99BlockMs": 4.0197000000002845,
+      "overBudgetBlocks": 22,
+      "measuredBlocks": 656,
+      "maxBlockMs": 5.394500000000335,
+      "medianBudgetRatio": 0.06884999999994079,
+      "p95BudgetRatio": 0.9434624999999528,
+      "peak": 0.1360834324400378,
+      "finite": true
+    },
+    {
+      "name": "resonator-spring",
+      "sampleRate": 48000,
+      "effects": [
+        "CRYSTAL",
+        "MODAL",
+        "DRIP",
+        "SQUASH"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 2.6666666666666665,
+      "medianBlockMs": 1.217200000000048,
+      "p95BlockMs": 2.105199999999968,
+      "p99BlockMs": 2.560099999999693,
+      "overBudgetBlocks": 1,
+      "measuredBlocks": 656,
+      "maxBlockMs": 2.6810999999997875,
+      "medianBudgetRatio": 0.456450000000018,
+      "p95BudgetRatio": 0.789449999999988,
+      "peak": 0.04486655450409905,
+      "finite": true
+    },
+    {
+      "name": "tape-performance",
+      "sampleRate": 96000,
+      "effects": [
+        "TAPE",
+        "PRISM",
+        "SPIRAL"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 1.3333333333333333,
+      "medianBlockMs": 0.5855000000001382,
+      "p95BlockMs": 0.9895000000005894,
+      "p99BlockMs": 1.185699999999997,
+      "overBudgetBlocks": 7,
+      "measuredBlocks": 1312,
+      "maxBlockMs": 1.5151000000005297,
+      "medianBudgetRatio": 0.4391250000001037,
+      "p95BudgetRatio": 0.742125000000442,
+      "peak": 0.6188642534132868,
+      "finite": true
+    },
+    {
+      "name": "rhythm-performance",
+      "sampleRate": 96000,
+      "effects": [
+        "CHOPPER",
+        "GATE",
+        "SPIRAL"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 1.3333333333333333,
+      "medianBlockMs": 0.32039999999960855,
+      "p95BlockMs": 0.619499999999789,
+      "p99BlockMs": 0.7417999999997846,
+      "overBudgetBlocks": 1,
+      "measuredBlocks": 1312,
+      "maxBlockMs": 3.198199999999815,
+      "medianBudgetRatio": 0.24029999999970642,
+      "p95BudgetRatio": 0.46462499999984175,
+      "peak": 0.22989334408481946,
+      "finite": true
+    },
+    {
+      "name": "granular-memory",
+      "sampleRate": 96000,
+      "effects": [
+        "SCATTER",
+        "GRANULAR DELAY",
+        "DATTORRO"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 1.3333333333333333,
+      "medianBlockMs": 0.43910000000050786,
+      "p95BlockMs": 0.6958999999997104,
+      "p99BlockMs": 0.8667999999997846,
+      "overBudgetBlocks": 1,
+      "measuredBlocks": 1312,
+      "maxBlockMs": 3.128000000000611,
+      "medianBudgetRatio": 0.3293250000003809,
+      "p95BudgetRatio": 0.5219249999997828,
+      "peak": 0.15813538428016127,
+      "finite": true
+    },
+    {
+      "name": "spectral-performance",
+      "sampleRate": 96000,
+      "effects": [
+        "FORMANT SHIFT",
+        "MAGNET",
+        "SPECTRAL DELAY"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 1.3333333333333333,
+      "medianBlockMs": 0.17489999999997963,
+      "p95BlockMs": 2.4726000000000568,
+      "p99BlockMs": 3.057600000000093,
+      "overBudgetBlocks": 328,
+      "measuredBlocks": 1312,
+      "maxBlockMs": 4.494200000000092,
+      "medianBudgetRatio": 0.13117499999998472,
+      "p95BudgetRatio": 1.8544500000000426,
+      "peak": 0.19191103662710268,
+      "finite": true
+    },
+    {
+      "name": "resonator-spring",
+      "sampleRate": 96000,
+      "effects": [
+        "CRYSTAL",
+        "MODAL",
+        "DRIP",
+        "SQUASH"
+      ],
+      "blockSamples": 128,
+      "budgetMs": 1.3333333333333333,
+      "medianBlockMs": 1.2336000000013883,
+      "p95BlockMs": 1.8665000000000873,
+      "p99BlockMs": 2.309800000000905,
+      "overBudgetBlocks": 247,
+      "measuredBlocks": 1312,
+      "maxBlockMs": 2.8575000000000728,
+      "medianBudgetRatio": 0.9252000000010412,
+      "p95BudgetRatio": 1.3998750000000655,
+      "peak": 0.06626533919609415,
+      "finite": true
+    }
+  ]
+}

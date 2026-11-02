@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {ModulationEffect} from '../fx-modulation.mjs';
 const sr=12000;
 test('flanger has explicit stable dry delay and through-zero reads both sides of its reference',()=>{
- const f=new ModulationEffect('FLANGER',sr);assert.equal(f.latency,240);const p={tzf:1,delay:.5,depth:1,rate:.8,feedback:.5};let ahead=0,behind=0,energy=0;
+ const f=new ModulationEffect('FLANGER',sr);assert.equal(f.latency,120);const p={tzf:1,delay:.5,depth:1,rate:.8,feedback:.5};let ahead=0,behind=0,energy=0;
  const read=f.wet.read.bind(f.wet);f.wet.read=(ch,d)=>{if(d<f.latency)ahead++;if(d>f.latency)behind++;return read(ch,d);};
  for(let n=0;n<sr;n++){const y=f.process(Math.sin(n*.2)*.2,Math.sin(n*.19)*.2,p,n,120);energy+=y[0]**2;assert.ok(Number.isFinite(y[0]));}
  assert.ok(ahead>100&&behind>100);assert.ok(energy>1);

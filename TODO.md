@@ -1,28 +1,28 @@
 # DA DESTRUCTOR – offene Punkte nach Version 2.0
 
-Stand: 1. November 2026. Grundlage: Abgleich des aktuellen Quellstands mit
+Stand: 2. November 2026 – DA DESTRUCTOR 2.1. Grundlage: Abgleich des aktuellen Quellstands mit
 [Recherche-Briefing](docs/research-brief.md). Alle 62 Effektfamilien sind vorhanden;
 die folgenden Punkte unterscheiden verbleibende Funktionslücken, begrenzte
 Verfahren, Browser-Abgrenzungen und lediglich geplante Originalfunktionen.
 
 Die bestehende Geräteoberfläche mit variablem Theming ist bei weiteren Arbeiten
-beizubehalten. Diese Liste dokumentiert Arbeit; sie setzt die Punkte nicht um.
+beizubehalten. Die umgesetzten Punkte sind markiert. Geräteabhängige Prüfungen bleiben ausdrücklich offen.
 
 ## Priorität 1 – konkrete Funktionslücken
 
-- [ ] **FFT-Größe während der Wiedergabe wechseln.** Insbesondere FORMANT SHIFT
+- [x] **FFT-Größe während der Wiedergabe wechseln.** Insbesondere FORMANT SHIFT
   verlangt laut Briefing live umschaltbare 512/1024/2048/4096 Punkte und eine
-  modulierbare SIZE. Aktuell hält die Runtime die aktive Größe bis zum Stop fest.
+  modulierbare SIZE. Früher hielt die Runtime die aktive Größe bis zum Stop fest; der Live-Pfad ist jetzt umgesetzt.
   DSP-Umschaltung und Behandlung der Ausgleichslatenz getrennt lösen, mit einem
   hörbar sauberen Übergang zwischen den Verarbeitungsgrößen.
   - Abnahme: SIZE-Änderungen per Regler, Modulation und Gesten-Replay wirken bei
     laufendem Transport; es bleiben keine veralteten Pending-Werte zurück.
   - Einstieg: `audio-worklet.mjs`, `spectral.mjs`, `fx-core.mjs`.
 
-- [ ] **FX-Umordnung bei unveränderter Gesamtlatenz sofort anwenden.** Die
-  strukturelle Vergleichslogik stellt derzeit auch reine Umordnungen zurück,
-  sobald ein beteiligter Effekt Latenz besitzt. Beispielsweise bleibt der Tausch
-  von FLANGER und EQ bis zum Stop ausstehend.
+- [x] **FX-Umordnung bei unveränderter Gesamtlatenz sofort anwenden.** Die frühere
+  strukturelle Vergleichslogik stellte auch reine Umordnungen zurück,
+  sobald ein beteiligter Effekt Latenz besitzt. Beispielsweise blieb der Tausch
+  von FLANGER und EQ bis zum Stop ausstehend; dies wirkt jetzt live.
   - Abnahme: Umordnung wirkt während der Wiedergabe; vorhandene Effektzustände und
     Zuweisungen bleiben erhalten. Tatsächlich latenzändernde Fälle werden separat
     behandelt, einschließlich Parallelbetrieb und unabhängiger L/R-Pfade.
@@ -30,14 +30,14 @@ beizubehalten. Diese Liste dokumentiert Arbeit; sie setzt die Punkte nicht um.
 
 ## Weitere funktionale Erweiterungen
 
-- [ ] **Random Setup auf nichtnumerische Parameter erweitern.** Boolesche Schalter
+- [x] **Random Setup auf nichtnumerische Parameter erweitern.** Boolesche Schalter
   und textbasierte Time-Auswahlen, etwa REVERSE, FREEZE, SYNC und PATTERN,
   berücksichtigen. Numerische Modellwahlen und Slice-Werte sind bereits enthalten.
   - Für diskrete Werte die Bedeutung bipolarer Stärke festlegen; Wahrscheinlichkeit
     und Stärke 0 als Sperre beibehalten. Bestehende Random-Setups kompatibel laden.
   - Einstieg: `app.mjs` (`randomRows`, `randomizeRows`), `state.mjs`.
 
-- [ ] **Umfang der Gestenaufnahme prüfen und gegebenenfalls erweitern.** Aktuell
+- [x] **Umfang der Gestenaufnahme prüfen und gegebenenfalls erweitern.** Aktuell
   werden Parameterwerte einschließlich vieler Schalter/Auswahlen, Sequencer-Zellen
   und Graph-Koordinaten aufgenommen. FX hinzufügen/entfernen/umordnen, Graph-Punkte
   hinzufügen/löschen sowie Änderungen der Pattern-Anzahl werden nicht aufgenommen.
@@ -50,19 +50,19 @@ beizubehalten. Diese Liste dokumentiert Arbeit; sie setzt die Punkte nicht um.
 
 ## DSP-Qualität und verbleibende Vereinfachungen
 
-- [ ] **Pitch-Tracking mit schwierigen Quellen bewerten.** Die vorhandene
+- [x] **Pitch-Tracking mit schwierigen Quellen bewerten.** Die vorhandene
   YIN-Erkennung ist monophon. Akkorde, Schlagzeug und verrauschtes Material können
   mehrdeutige Ergebnisse liefern; Vertrauensbewertung und robustes Verhalten bei
   unsicherer Erkennung prüfen.
-- [ ] **SEPARATE mit unterschiedlichen Quellen bewerten.** TONAL/NOISE/HITS sind
+- [x] **SEPARATE mit unterschiedlichen Quellen bewerten.** TONAL/NOISE/HITS sind
   spektrale Schätzungen, keine zuverlässige Trennung beliebiger Instrumente.
   Übersprechen und Transientenartefakte gezielt untersuchen.
-- [ ] **Eigene Analog-/Gerätemodelle klanglich bewerten.** Tape, Filter, Wavefolder,
+- [x] **Eigene Analog-/Gerätemodelle klanglich bewerten.** Tape, Filter, Wavefolder,
   BBD und Federhall sind digitale Funktionsmodelle. Bauteilgenauigkeit und
   Klangidentität zum Original sind nicht nachgewiesen. Ebenso sind Scratch-Kurven
   und undokumentierte Spezialmodelle eigene Auslegungen, keine verifizierten
   Originalabstimmungen.
-- [ ] **Zusätzliche Nicht-FFT-Latenzen weiter reduzieren, soweit sinnvoll.**
+- [x] **Zusätzliche Nicht-FFT-Latenzen weiter reduzieren, soweit sinnvoll.**
   FIR-Oversampling, Hilbert-Shifter und Through-Zero-Flanger besitzen zusätzliche
   Verzögerung. Interner Ausgleich ist vorhanden; die Briefing-Aussage von null
   Samples außerhalb FFT wird dennoch nicht durchgehend erreicht. Qualität und
@@ -78,7 +78,9 @@ Diese Punkte sind keine fehlenden Bedienelemente der aktuellen Webapp:
   verfügbare Sampleraten und reale Ein-/Ausgangslatenz hängen von Browser, OS und
   Hardware ab.
 - [ ] Physische MIDI-Clock/Transport- und Audio-/Sidechain-Geräte prüfen.
-- [ ] Realtime-Leistung repräsentativer anspruchsvoller Patches messen; die
+  **Extern blockiert:** Der Nutzer hat am 2. November bestätigt, dass keine
+  geeigneten Geräte angeschlossen sind. Nicht als geprüft oder erledigt gewertet.
+- [x] Realtime-Leistung repräsentativer anspruchsvoller Patches messen; die
   bisherigen Mechanismusprüfungen garantieren nicht alle 62 Effekte gleichzeitig
   bei maximaler Qualität oder 192 kHz.
 
@@ -86,11 +88,11 @@ Diese Punkte sind keine fehlenden Bedienelemente der aktuellen Webapp:
 
 Keine bestätigten Lücken gegenüber dem beschriebenen ausgelieferten Original:
 
-- [ ] Beliebige Sequencer-Längen über verkettete 1–4 × 16 Steps hinaus.
-- [ ] Weitere Sequencer-Ziele.
-- [ ] Freie/ms-Raten für LFO und Random.
-- [ ] Zusätzliche granulare Time-Engine und längere Stretch-Grains.
-- [ ] Trance-Gate mit ADSR.
+- [x] Beliebige Sequencer-Längen über verkettete 1–4 × 16 Steps hinaus.
+- [x] Weitere Sequencer-Ziele.
+- [x] Freie/ms-Raten für LFO und Random.
+- [x] Zusätzliche granulare Time-Engine und längere Stretch-Grains.
+- [x] Trance-Gate mit ADSR.
 
 ## Prüfhinweis
 
@@ -100,3 +102,34 @@ Rückstellung von FLANGER/EQ-Umordnung wurden beim Abgleich direkt an der Runtim
 bestätigt. Weitere Arbeiten mit gezielten Signal- und Bedienprüfungen abnehmen;
 Original-DSP, Presets und unbekannte Detailverfahren sind nicht als Referenzcode
 verfügbar.
+
+## Umsetzung vom 2. November 2026
+
+- Live-FFT: aktive und neue Größe laufen während Warmup und 20-ms-Überblendung
+  parallel; rasche Anfragen werden zusammengeführt. Beim Spielen reserviert jeder
+  STFT-Effekt 4096 Ausgleichssamples. Nach Stop und Ausblenden wird die aktuelle
+  ausgewählte Latenz freigegeben. Neue FFT-Bänke beginnen mit eigener Historie.
+- Latenzneutrales Umsortieren erhält die vorhandenen Effektinstanzen und Zuweisungen.
+- Diskrete Randomisierung: Betrag der Stärke bestimmt die Wechselchance; positive
+  Stärke geht vorwärts, negative rückwärts durch bekannte Auswahlwerte.
+- Strukturaufnahme stellt ursprüngliche FX-/Graph-/Sequencer-Strukturen beim Loop
+  wieder her und prüft importierte Ereignisse gegen ihre zeitliche Struktur.
+- Sequencer: unabhängige 1–64 Steps und zusätzliche numerische Ziele mit MIN/MAX;
+  Länge 0 erhält beim Import die früheren 1–4 Pattern-Ketten.
+- FREE-LFO/RAND: 0,01–100 Hz. Granular: eigene vierte Time-Stufe, 8 s Historie,
+  bis 16 überlappende Grains. Stretch: bis achtfache Grain-Länge.
+- GATE: zusätzlicher TRANCE-Modus mit tatsächlicher ADSR-Hüllkurve und FREE/SYNC.
+- Pitch-Konfidenz verwirft nachgewiesene Phantom-Grundtöne und gibt unsichere
+  Schätzungen frei; UNDERTOW PLL blendet dann zum Dry-Pfad zurück.
+- SEPARATE: adaptive Transientenschwelle reduziert falsche HITS bei stationärem
+  Rauschen. Dies bleibt eine spektrale Schätzung.
+- Nachgewiesener DC in asymmetrischen Tape-/PRISM-Modellen wird am Ausgang
+  reduziert. Modellbewertung und Offline-Leistungsmessung sind reproduzierbar mit
+  `node scripts/assess-dsp.mjs`; keine Zusage von Klang- oder Bauteilgleichheit.
+- Flanger-Referenzlatenz: 10 statt 20 ms; FIR-Oversampling 15 und Hilbert 63 Samples
+  bleiben zugunsten der Filterqualität erhalten. Null-Latenz für diese Verfahren
+  wird nicht behauptet.
+- Leistungsprüfung: fünf Produktionspfad-Patches bei 48/96 kHz, 128-Sample-Blöcke,
+  Warmup, Median/P95/P99 und Budgetüberschreitungen. Besonders 96-kHz-Spektral- und
+  Resonator-Patches können das Blockbudget überschreiten. Kein Hardware- oder
+  Browser-Dropoutnachweis; Details im Prüfbericht.

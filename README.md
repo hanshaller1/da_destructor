@@ -1,6 +1,20 @@
-# DA DESTRUCTOR 2.0
+# DA DESTRUCTOR 2.1
 
 Stereo-Audioinstrument für den Browser auf Grundlage des gelieferten Recherchebriefings. Die bestehende Geräteoberfläche mit sechs Seiten, eingefassten Panels, plastischen Reglern und dauerhaft sichtbarem MAIN bleibt erhalten. Vier Themes, freie Akzentfarbe und UI-Skalierung sind zur Laufzeit verfügbar.
+
+## Neu in 2.1
+
+Live-FFT-Umschaltung, sofortige latenzneutrale FX-Umordnung, diskrete Randomisierung,
+Strukturaufnahme für FX/Graphen/Sequencer, unabhängige 1–64-Step-Sequencer mit frei
+wählbaren numerischen Zielen, FREE-LFO/RAND (0,01–100 Hz), eine zusätzliche Granular-
+Time-Engine und verlängerte Stretch-Grains sowie TRANCE-GATE mit ADSR. Die neuen
+Bedienelemente verwenden die bestehenden Panels, Details und Theme-Variablen.
+
+Pitch-Konfidenz und Rausch-/Transienten-Erkennung wurden verbessert, nachgewiesene
+DC-Anteile in Tape/PRISM reduziert und die Flanger-Latenz auf 10 ms halbiert.
+Die vollständige Arbeitsliste und Abgrenzungen stehen in [TODO.md](TODO.md).
+Die physische Geräteprüfung bleibt offen: Es sind keine geeigneten Geräte
+angeschlossen. Offline-Leistungsmessungen sind keine Echtzeitgarantie.
 
 ## Start
 
@@ -15,15 +29,15 @@ Dann `http://127.0.0.1:4173` öffnen. Unter Windows alternativ `Start-Destructor
 ## Bedienung und Erweiterungen
 
 - **TIME:** Stereo-Stretch mit musikalischem Grain-Raster, unabhängigem Pitch und Freeze; Varispeed mit Tape-Stop, Scratch, Wow/Flutter und 2×-Sättigung; Stutter mit festem Wiederholungsraster unabhängig vom Pitch; BendIt mit vier benannten, über vier Takte laufenden Scratch-Programmen und editierbarem Tukey-WINDOW. Weitere Optionen liegen hinter `···`, Random-Setup hinter dem Zahnrad. Die drei seriellen Reihenfolgen und Parallelbetrieb bleiben verfügbar.
-- **FX RACK:** Alle 62 Effektfamilien haben Audioprozessoren. DETAILS öffnet die zusätzlichen Parameter. L/R LOCK koppelt die Regler; ohne Lock können LEFT und RIGHT unabhängig bearbeitet werden. MUTE und Bypass sind getrennt. SYNC erscheint bei den 24 Effekten mit tatsächlich umschaltbarer freier/geclockter Rate. Jeder Effekt besitzt Gain, Mix und eine gemessene Ausgangsvisualisierung. CHOPPER bietet zusätzlich einen Editor für 32 Slices.
+- **FX RACK:** Alle 62 Effektfamilien haben Audioprozessoren. DETAILS öffnet die zusätzlichen Parameter. L/R LOCK koppelt die Regler; ohne Lock können LEFT und RIGHT unabhängig bearbeitet werden. MUTE und Bypass sind getrennt. SYNC erscheint bei den 25 Effekten mit tatsächlich umschaltbarer freier/geclockter Rate. Jeder Effekt besitzt Gain, Mix und eine gemessene Ausgangsvisualisierung. CHOPPER bietet zusätzlich einen Editor für 32 Slices.
 - **Neue DSP-Mechanismen:** Echte MDCT-Codierung für LOSSY, Pitch-Tracking, 2×-Oversampling, Hilbert-Frequenzverschiebung, vier PRISM-Filtertopologien, vier Tape-Modelle, 60 CRYSTAL-Moden, echter Through-Zero-Flanger, gegenläufige Barber-Sweeps, lange Historien, getrennte Capture-Bänke, gehaltene Aufnahmen, Loop-Modi, bandselektive Dynamik und getrennte Hallstrukturen.
 - **Spektralverarbeitung:** FFT-Größen 512/1024/2048/4096, phasenkohärentes Remapping, Formanthüllkurven, Ton/Rausch/Transienten-Aufteilung, echte Snapshot-Oszillatoren, globale KEY-/CHORD-Masken, externe MAGNET-Peaks und per-Bin-Delay mit musikalischen Zeiten und Band-Freeze.
 - **ANIMATE:** Vier LFO-/Random-/Envelope-Quellen mit je sechs Zielen und drei geschlossene Bézier-Graphen mit je sechs Zielen. HANDLES zeigt die direkt ziehbaren Kurvenhandles; Shift-Ziehen bleibt für Segmentkrümmung verfügbar. Das Zahnrad wählt musikalische oder ältere Preset-Zeiten. Modulatoren können andere Modulatoren steuern.
-- **Sequencer:** Je 1–4 verkettete Patterns mit 16 Steps für Stretch und Stutter/Bend. Klick schaltet einen Step, Ziehen verändert seinen Wert. FILL, CLEAR, INVERT und Würfeln bearbeiten das aktuelle Pattern. Übergänge werden pro Sample berechnet.
+- **Sequencer:** Je 1–4 verkettete Patterns mit 16 Steps oder eine eigene Länge von 1–64 Steps für Stretch und Stutter/Bend. TARGET wählt alternativ einen anderen numerischen Parameter mit MIN/MAX. Klick schaltet einen Step, Ziehen verändert seinen Wert. FILL, CLEAR, INVERT und Würfeln bearbeiten das aktuelle Pattern. Übergänge werden pro Sample berechnet.
 - **PERFORM:** Vier benennbare Macros und XY mit je fünf Zielen. Pickup berücksichtigt laufende Modulation und konkurrierende Controller. Zugewiesene Regler sind gesperrt; ein Badge zeigt die aktuell steuernde Quelle und führt zu ihr. Rechtsklick öffnet die Zuweisung. Bestehende Slot-Kurven werden beim Ziehen unmittelbar hörbar; CANCEL stellt die Zuweisung wieder her.
-- **REC MOTION / PLAY MOTION:** Bewegungen der Regler, Macros, XY, boolescher Schalter, bekannter Auswahlfelder, Sequencer-Werte und Graph-Koordinaten aufnehmen und im Audiotakt wiedergeben. LOOP wiederholt die Aufnahme. Presets enthalten die Bewegung. Aufnahmebegrenzung: zehn Minuten beziehungsweise 50.000 Events. Eine neue Aufnahme ersetzt den bisherigen Take erst beim Speichern des Takes.
+- **REC MOTION / PLAY MOTION:** Bewegungen der Regler, Macros, XY, boolescher Schalter, bekannter Auswahlfelder, Sequencer-Werte und Graph-Koordinaten aufnehmen und im Audiotakt wiedergeben. LOOP wiederholt die Aufnahme. Presets enthalten die Bewegung. Auch FX-Reihenfolge, Graph-Punktzahl und Sequencer-Struktur werden aufgenommen. Aufnahmebegrenzung: zehn Minuten beziehungsweise 50.000 Events. Eine neue Aufnahme ersetzt den bisherigen Take erst beim Speichern des Takes.
 - **EXTERNAL SIDECHAIN:** Unter PLAY / LOAD einen unabhängigen Audioeingang oder eine separate Audiodatei verbinden. ENV kann INTERNAL oder EXTERNAL verwenden; MAGNET kann sich an externen Spektralpeaks orientieren. Der Sidechain wird nicht zum hörbaren Ausgang gemischt.
-- **MAIN / CONFIG:** Gain, Low/Mid/High, Pan, Compressor, Dry/Wet und Limiter. Auto Gain gleicht die gemessene Bearbeitungs-Pegeländerung aus und steht unter CONFIG. Dort befinden sich auch der Gain-Bereich, globale Tonart und Latenzausgleich. Änderungen der latenztragenden FX-Struktur werden bei laufendem Transport bis zum Stop vorgemerkt.
+- **MAIN / CONFIG:** Gain, Low/Mid/High, Pan, Compressor, Dry/Wet und Limiter. Auto Gain gleicht die gemessene Bearbeitungs-Pegeländerung aus und steht unter CONFIG. Dort befinden sich auch der Gain-Bereich, globale Tonart und Latenzausgleich. FFT-Größen wechseln während der Wiedergabe mit Überblendung innerhalb eines festen Ausgleichsbudgets. Latenzneutrale Umordnungen wirken sofort; tatsächlich latenzändernde Strukturwechsel bleiben bis zum Stop vorgemerkt.
 - **MIDI:** Explizite Freigabe und Eingangswahl in CONFIG. Clock, START, CONTINUE, STOP und Song Position Pointer werden verarbeitet. Die Sample-Clock akkumuliert musikalische Zeit und korrigiert Drift begrenzt anhand der Zeitstempel eingehender MIDI-Nachrichten.
 - **REC WAV:** Der bearbeitete Stereoausgang wird nach dem Limiter und vor der Monitor-Lautstärke als 16-Bit-PCM-WAV aufgenommen. Stop, Pause und Quellenwechsel schließen die Aufnahme ab.
 
@@ -52,5 +66,7 @@ npm.cmd run build
 ```
 
 Die Browserprüfungen benötigen einen bereits laufenden lokalen Server sowie Playwright und Chrome/Edge. Sie suchen die vorhandene lokale Runtime; alternativ `PLAYWRIGHT_MODULE`, `CHROME_PATH` und `BASE_URL` setzen. Es wird kein Browser heruntergeladen. `npm.cmd run build` erzeugt die statische HTTPS-bereite App in `dist/`.
+
+Mit `node scripts/assess-dsp.mjs` werden reproduzierbare Signalmetriken, WAV-Modellvergleiche und Produktionspfad-Benchmarks unter `outputs/` erzeugt.
 
 Die Module bleiben unabhängig vom UI-Framework: `state.mjs` Parameter/Preset-Schema, `audio-host.mjs` Dateien/Eingänge/WAV, `audio-worklet.mjs` Signalpfad/Clock/Replay, `time-core.mjs` Time-Engines, `fx-core.mjs` Rack, `fx-advanced.mjs` zusätzliche Effektmechanismen, `fx-reverb.mjs` Hall, `fx-modulation.mjs` Flanger/Phaser, `dsp-primitives.mjs` Pitch/Filter/Hilbert/FIR, `codec-mdct.mjs` LOSSY, `spectral.mjs` FFT/STFT, `modulation.mjs` Quellen/Takeover/Sequencer, `automation.mjs` Gestenaufnahme und `midi-clock.mjs` MIDI-Empfang.

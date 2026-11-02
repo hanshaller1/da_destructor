@@ -103,7 +103,8 @@ extra('SPECTRAL DELAY',[p('gate','GATE',0),p('locut','LOW CUT',0),p('shape','SHA
 EFFECTS.find(e=>e.id==='SMEAR').params.find(p=>p.key==='hold').options=['OFF','1 BAR','1/2','1/4','1/8','1/16','1/32','1/64'];
 const SNAP_TYPES=new Set(['PITCH SHIFT','TRIAD','SCATTER','SCANNER','CHOPPER','STRUM','GRANULAR DELAY','GRANUVERB','MIRROR','HOWL','TOOTH','COMB','CRYSTAL','MODAL','STRINGS','MAGNET','WARP','SPECTRAL DELAY','FREQ SHIFT','FISSION','CHROMA','SEPARATE','UNDERTOW','WENDY']);
 // Capability metadata follows live dispatch: fixed beat-only processes have no FREE/SYNC switch.
-const SYNC_TYPES=new Set(['BITROT','CIRCUIT BEND','LOSSY','VESPER','PITCH SHIFT','SCATTER','TRIAD','FREQ SHIFT','CHOPPER','LOOP','STRUM','WENDY','CHORUS','ENSEMBLE','FLANGER','PHASER','FLYBY','ORBIT','TREMOR','SPIRAL','GRANULAR DELAY','REEL','SPECTRAL DELAY','CADENCE']);
+extra('GATE',[p('mode','MODE',0,'percent',['NOISE','TRANCE']),p('rate','RATE',.5),p('length','GATE LENGTH',.5),p('decay','DECAY',.2),p('sustain','SUSTAIN',.7)]);
+const SYNC_TYPES=new Set(['GATE','BITROT','CIRCUIT BEND','LOSSY','VESPER','PITCH SHIFT','SCATTER','TRIAD','FREQ SHIFT','CHOPPER','LOOP','STRUM','WENDY','CHORUS','ENSEMBLE','FLANGER','PHASER','FLYBY','ORBIT','TREMOR','SPIRAL','GRANULAR DELAY','REEL','SPECTRAL DELAY','CADENCE']);
 for(const effect of EFFECTS){effect.snap=SNAP_TYPES.has(effect.id);effect.canSync=SYNC_TYPES.has(effect.id);}
 export const EFFECT_BY_ID=Object.fromEntries(EFFECTS.map(effect=>[effect.id,effect]));
 export function makeEffect(type,id=`fx-${Date.now().toString(36)}`){const def=EFFECT_BY_ID[type];if(!def)throw new Error(`Unknown effect: ${type}`);const params=Object.fromEntries(def.params.map(p=>[p.key,p.default]));return {id,type,on:true,muted:false,lrLock:true,sync:false,mix:.5,gain:.5,snap:false,params,paramsR:{...params},...(def.sliceControls?{slices:Array.from({length:32},()=>Object.fromEntries(def.sliceControls.map(p=>[p.key,p.default])))}:{})};}
@@ -165,7 +166,7 @@ function legacyFormatEffectValue(type,key,value,tonal={}){
  return `${Math.round(x*100)} %`;
 }
 
-export function effectLatencyHint(type,params={},sampleRate=48000){if(['SIEVE','CHROMA','CONTRAST','SEPARATE','SMEAR','FORMANT SHIFT','MAGNET','STILLS','WARP','SPECTRAL DELAY'].includes(type))return 512*2**Math.round(Math.min(1,Math.max(0,params.size||0))*3);if(type==='LOSSY')return 2048;if(type==='FLANGER')return Math.ceil(sampleRate*.02);if(type==='FREQ SHIFT'||type==='PITCH SHIFT')return 63;if(['TAPE','DISTORT','PLASMA','WAVEFOLDER','EXCITE','CIRCUIT BEND','HOWL','MIRROR','FISSION'].includes(type))return 15;return 0;}
+export function effectLatencyHint(type,params={},sampleRate=48000){if(['SIEVE','CHROMA','CONTRAST','SEPARATE','SMEAR','FORMANT SHIFT','MAGNET','STILLS','WARP','SPECTRAL DELAY'].includes(type))return 512*2**Math.round(Math.min(1,Math.max(0,params.size||0))*3);if(type==='LOSSY')return 2048;if(type==='FLANGER')return Math.ceil(sampleRate*.01);if(type==='FREQ SHIFT'||type==='PITCH SHIFT')return 63;if(['TAPE','DISTORT','PLASMA','WAVEFOLDER','EXCITE','CIRCUIT BEND','HOWL','MIRROR','FISSION'].includes(type))return 15;return 0;}
 
 export function formatEffectValue(type,key,value,context={}){
  const x=Math.min(1,Math.max(0,Number(value)||0)),descriptor=EFFECT_BY_ID[type]?.params.find(p=>p.key===key),sync=context.sync===true,sr=context.sampleRate||48000,bpm=context.bpm||120,params=context.params||{};
@@ -224,5 +225,6 @@ export function formatEffectValue(type,key,value,context={}){
  }
  if(key==='rate'&&sync){if(type==='FLANGER'||type==='PHASER')return beat([16,8,4,2,1,.5,.25,.125,.0625,.03125,.015625,.0078125][Math.round(x*11)]);if(type==='VESPER')return beat(4*2**(-Math.round(x*6)));if(type==='ORBIT'||type==='TREMOR')return beat(4*2**(-Math.round(x*9)));if(type==='CHORUS')return beat(4*2**(-Math.round(x*6)));}
  if(type==='CADENCE'&&key==='time')return sync?beat(.5**(Math.round(x*6)-3)):ms(.01+3.99*x*x);
+ if(type==='GATE'){if(key==='rate')return sync?beat([4,2,1,.5,.25,.125,.0625,.03125,.015625,.0078125][Math.round(x*9)]):`${(.1+19.9*x*x).toFixed(2)} Hz`;if(key==='length')return `${Math.round((.02+.96*x)*100)} %`;if(key==='decay')return ms(.001+2*x*x);if((context.params?.mode??0)>.5){if(key==='attack')return ms(.0002+.1*x*x);if(key==='release')return ms(.001+2*x*x);}}
  return legacyFormatEffectValue(type,key,x,context);
 }
